@@ -34,21 +34,109 @@ Aden gives you four levels of protection, from gentle warnings to hard stops:
 
 ---
 
+## Configuring Budgets on the Server
+
+The SDK enforces budgets that you configure on the Aden control server. When your application starts, it connects to the server and receives the current policy. All enforcement happens locally—no per-request latency added.
+
+### Budget Threshold Progression
+
+Configure thresholds to trigger different actions as spending increases:
+
+```
+0% ─────────── 50% ─────────── 80% ─────────── 95% ─────────── 100%
+   [ALLOW]       [ALERT]        [DEGRADE]       [THROTTLE]      [BLOCK]
+                   │                │                │              │
+                   ↓                ↓                ↓              ↓
+              "Warning!"      Switch to        Slow down       Hard stop
+                            gpt-4o-mini
+```
+
+### Server-Side Configuration
+
+Configure budgets via the Aden dashboard or API. Here's an example policy with multiple thresholds:
+
+```json Budget Policy
+{
+  "type": "global",
+  "limit_usd": 100.00,
+  "thresholds": [
+    {"percent": 50, "action": "alert", "level": "warning"},
+    {"percent": 80, "action": "degrade", "provider": "openai", "to_model": "gpt-4o-mini"},
+    {"percent": 95, "action": "throttle", "delay_ms": 2000}
+  ],
+  "limit_action": "block"
+}
+```
+
+<Expandable title="API Endpoints">
+  | Endpoint | Method | Description |
+  |----------|--------|-------------|
+  | `/v1/control/policy/budgets` | POST | Create or update budget limits |
+  | `/v1/control/policy/alerts` | POST | Configure alert thresholds |
+  | `/v1/control/policy/degradations` | POST | Set up model degradation rules |
+  | `/v1/control/policy/throttles` | POST | Configure throttling rules |
+</Expandable>
+
+### What Happens in Your App
+
+Once budgets are configured on the server, your SDK automatically enforces them:
+
+```typescript
+// At $0 spent (0% of $100 budget)
+await openai.chat.completions.create({ model: "gpt-4o", ... });
+// → Uses gpt-4o ✓
+
+// At $50 spent (50% of budget)
+await openai.chat.completions.create({ model: "gpt-4o", ... });
+// → Uses gpt-4o, triggers onAlert callback with "warning"
+
+// At $80 spent (80% of budget)
+await openai.chat.completions.create({ model: "gpt-4o", ... });
+// → Automatically uses gpt-4o-mini instead (degraded)
+
+// At $95 spent (95% of budget)
+await openai.chat.completions.create({ model: "gpt-4o", ... });
+// → Uses gpt-4o-mini, request delayed 2 seconds (throttled)
+
+// At $100+ spent (100% of budget)
+await openai.chat.completions.create({ model: "gpt-4o", ... });
+// → Throws RequestCancelledError (blocked)
+```
+
+<Info>
+The SDK caches the policy locally and syncs with the server periodically. This means zero latency overhead on each request while still getting real-time budget updates.
+</Info>
+
+---
+
 ## Setting Up Alerts
 
 Get notified before it's too late. Alerts let you know when you're approaching budget limits—not hours later, but in real-time.
 
-### How it works
+### Server-Side Alert Policy
 
-```
-Your spending: $0 ─────────── $80 ─────────── $100
-                              │                 │
-                              ↓                 ↓
-                         "Warning!"       "Budget hit!"
-                        (80% alert)      (100% alert)
+Configure alert thresholds via the Aden dashboard or API:
+
+```json Alert Configuration
+[
+  {
+    "trigger": "budget_threshold",
+    "threshold_percent": 80,
+    "level": "warning",
+    "message": "Approaching budget limit"
+  },
+  {
+    "trigger": "budget_threshold",
+    "threshold_percent": 95,
+    "level": "critical",
+    "message": "Budget nearly exhausted"
+  }
+]
 ```
 
-### Implementation
+### SDK Alert Handler
+
+When alerts trigger, your `onAlert` callback receives the notification:
 
 <Tabs>
   <Tab title="TypeScript">
@@ -124,7 +212,26 @@ Your spending: $0 ─────────── $80 ────────
 
 Alerts are great, but what if you want the system to automatically slow down? Throttling adds delays to requests when approaching limits—your agent keeps working, just more slowly.
 
-### How it works
+### Server-Side Throttle Policy
+
+Configure throttling thresholds via the Aden dashboard or API:
+
+```json Throttle Configuration
+[
+  {
+    "trigger": "budget_threshold",
+    "threshold_percent": 90,
+    "delay_ms": 2000
+  },
+  {
+    "trigger": "budget_threshold",
+    "threshold_percent": 95,
+    "delay_ms": 5000
+  }
+]
+```
+
+### What Happens
 
 ```
 Normal operation:    Request → Response → Request → Response
@@ -141,7 +248,9 @@ At 90% budget:       Request → [2 sec wait] → Response → Request → [2 se
 Throttling gives you time to investigate without completely stopping your users. Think of it like a speed limiter in a car.
 </Info>
 
-### Implementation
+### SDK Implementation
+
+The SDK automatically enforces throttling. Your code stays the same:
 
 <Tabs>
   <Tab title="TypeScript">
@@ -168,34 +277,28 @@ Throttling gives you time to investigate without completely stopping your users.
   <Tab title="Python">
     ```python
     import os
-    from aden import instrument_async, MeterOptions, BeforeRequestResult
-
-    async def smart_throttle(params, context):
-        """Add delays based on budget usage"""
-        usage_percent = await get_current_budget_usage()
-
-        if usage_percent >= 95:
-            return BeforeRequestResult.throttle(delay_ms=5000)
-        elif usage_percent >= 90:
-            return BeforeRequestResult.throttle(delay_ms=2000)
-
-        return BeforeRequestResult.proceed()
+    import asyncio
+    from aden import instrument_async, uninstrument_async, MeterOptions
 
     async def main():
         await instrument_async(MeterOptions(
             api_key=os.environ.get("ADEN_API_KEY"),
             server_url=os.environ.get("ADEN_API_URL"),
-            before_request=smart_throttle,
         ))
 
         from openai import AsyncOpenAI
         client = AsyncOpenAI()
 
-        # Requests automatically throttled based on budget
+        # At 90% budget, this request will automatically wait 2 seconds
+        # Your code doesn't change at all - Aden handles it
         response = await client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": "Generate a report"}],
         )
+
+        await uninstrument_async()
+
+    asyncio.run(main())
     ```
   </Tab>
 </Tabs>
@@ -206,7 +309,30 @@ Throttling gives you time to investigate without completely stopping your users.
 
 This is one of the most powerful features. When approaching your budget, why pay premium prices? Aden can automatically switch to a cheaper model—your users still get answers, and you save money.
 
-### How it works
+### Server-Side Degradation Policy
+
+Configure model degradation rules via the Aden dashboard or API:
+
+```json Degradation Configuration
+[
+  {
+    "provider": "openai",
+    "from_model": "gpt-4o",
+    "to_model": "gpt-4o-mini",
+    "trigger": "budget_threshold",
+    "threshold_percent": 50
+  },
+  {
+    "provider": "anthropic",
+    "from_model": "claude-3-5-sonnet-latest",
+    "to_model": "claude-3-5-haiku-latest",
+    "trigger": "budget_threshold",
+    "threshold_percent": 80
+  }
+]
+```
+
+### What Happens
 
 ```
 Budget at 0-50%:     "gpt-4o"  →  Full power, highest quality
@@ -220,7 +346,9 @@ The magic is that **your code still asks for `gpt-4o`**—Aden silently swaps it
 Model degradation keeps your application running without any code changes. Your users get answers, your wallet stays happy.
 </Tip>
 
-### Implementation
+### SDK Implementation
+
+Your code stays the same—the SDK handles the model swap automatically:
 
 <Tabs>
   <Tab title="TypeScript">
@@ -287,15 +415,25 @@ Model degradation keeps your application running without any code changes. Your 
 
 Sometimes you need to just stop. When your budget is exhausted, Aden can block requests entirely. This is your emergency stop button—it stops the bleeding immediately.
 
-### How it works
+### Server-Side Budget Limit
 
-When the budget hits zero, any new LLM request fails with a `RequestCancelledError`. The request **never reaches OpenAI/Anthropic**, so you don't get charged.
+Configure the action when budget is exhausted:
+
+```json Budget with Block Action
+{
+  "type": "global",
+  "limit_usd": 100.00,
+  "limit_action": "block"
+}
+```
+
+When the budget hits 100%, any new LLM request fails with a `RequestCancelledError`. The request **never reaches OpenAI/Anthropic**, so you don't get charged.
 
 <Warning>
 Make sure your application handles `RequestCancelledError` gracefully. Show users a friendly message like "You've reached your usage limit" rather than crashing.
 </Warning>
 
-### Implementation
+### SDK Implementation
 
 <Tabs>
   <Tab title="TypeScript">
@@ -393,7 +531,35 @@ Global budget: $1000 (safety net)
 └── ... each customer isolated
 ```
 
-### Budget types
+### Server-Side Budget Configuration
+
+Configure multiple budget types via the Aden dashboard or API:
+
+```json Multi-Budget Configuration
+[
+  {
+    "type": "global",
+    "limit_usd": 1000.00,
+    "limit_action": "block"
+  },
+  {
+    "type": "customer",
+    "match_value": "acme-corp",
+    "limit_usd": 100.00,
+    "limit_action": "block"
+  },
+  {
+    "type": "feature",
+    "match_value": "document-analysis",
+    "limit_usd": 500.00,
+    "limit_action": "degrade",
+    "provider": "openai",
+    "degrade_to": "gpt-4o-mini"
+  }
+]
+```
+
+### Budget Types
 
 | Type | Matches On | Use Case |
 |------|------------|----------|
@@ -403,7 +569,9 @@ Global budget: $1000 (safety net)
 | **Feature** | `metadata.feature` | Chat vs. document analysis |
 | **Tag** | `metadata.tag` | Projects, teams, anything else |
 
-### Implementation
+When a request matches multiple budgets, **all are validated** and the most restrictive action wins.
+
+### SDK Implementation
 
 <Tabs>
   <Tab title="TypeScript">
