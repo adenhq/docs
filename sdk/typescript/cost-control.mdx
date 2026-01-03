@@ -1,25 +1,37 @@
 ---
 title: "Cost Control"
-description: "Budget enforcement, throttling, and model degradation"
+description: "Stop runaway costs before they happen"
 ---
 
-## Overview
+A single recursive loop can drain thousands of dollars in minutes. A hallucinating agent can spiral into an infinite retry cycle. By the time your LLM provider sends an alert, the damage is done.
 
-The Aden SDK provides real-time cost control through the control server. You can set budgets, throttle requests, degrade to cheaper models, and block requests when limits are exceeded.
+Aden's cost control acts as fast as your agents think - enforcing budgets in under 100ms, before the next API call is made.
 
-## Control Actions
+## How It Works
 
-| Action | Effect | Use Case |
-|--------|--------|----------|
-| **allow** | Request proceeds normally | Within budget |
-| **block** | Request rejected with error | Budget exhausted |
-| **throttle** | Request delayed | Rate limiting |
-| **degrade** | Switch to cheaper model | Approaching budget |
-| **alert** | Proceed with notification | Warning threshold |
+<CardGroup cols={2}>
+  <Card title="Sub-100ms Enforcement" icon="bolt">
+    Budget checks happen inline, not after the fact
+  </Card>
+  <Card title="Granular Budgets" icon="sliders">
+    Set limits per user, agent, feature, or globally
+  </Card>
+</CardGroup>
+
+## The Four Actions
+
+When a budget threshold is hit, Aden can take one of four actions:
+
+| Action | What Happens | When to Use |
+|--------|--------------|-------------|
+| **Alert** | Email notification, request continues | Early warning (80% of budget) |
+| **Throttle** | Artificial delay between calls | Slow the burn rate |
+| **Degrade** | Switch to a cheaper model | Preserve functionality at lower cost |
+| **Block** | Request rejected immediately | Hard budget cap reached |
 
 ## Setup
 
-Connect to the control server:
+Connect to the Aden control server:
 
 ```typescript
 import { instrument } from "aden";
@@ -27,146 +39,87 @@ import OpenAI from "openai";
 
 await instrument({
   apiKey: process.env.ADEN_API_KEY,
-  serverUrl: process.env.ADEN_API_URL, // Optional, has default
-
+  serverUrl: process.env.ADEN_API_URL,
   sdks: { OpenAI },
 
   // Track usage per user for individual budgets
   getContextId: () => getCurrentUserId(),
 
-  // Handle alerts
+  // Handle alerts in your app
   onAlert: (alert) => {
     console.warn(`[${alert.level}] ${alert.message}`);
-    // Send to Slack, PagerDuty, etc.
   },
-
-  // What to do if control server is unreachable
-  failOpen: true, // Allow requests (default)
 });
 ```
 
-## Budget Configuration
+## Budget Hierarchy
 
-Set budgets via the control server API:
+Budgets can be set at multiple levels. More specific budgets take precedence:
+
+```
+Global Budget ($1,000/month)
+    └── Feature Budget: "customer-support" ($500/month)
+            └── Agent Budget: "support-agent-v2" ($100/month)
+                    └── User Budget: "user_123" ($10/month)
+```
+
+A $10 user budget will block that user even if the global budget has room. This transforms your LLM bill from a single number into a granular balance sheet.
+
+## Setting Budgets
 
 ### Per-User Budget
 
 ```bash
-curl -X POST https://kube.acho.io/v1/control/policy/budgets \
+curl -X POST https://api.adenhq.com/v1/budgets \
   -H "Authorization: Bearer $ADEN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "context_id": "user_123",
     "limit_usd": 10.00,
     "period": "monthly",
-    "action_on_exceed": "block"
+    "actions": {
+      "80": "alert",
+      "100": "block"
+    }
   }'
 ```
 
 ### Global Budget
 
 ```bash
-curl -X POST https://kube.acho.io/v1/control/policy/budgets \
+curl -X POST https://api.adenhq.com/v1/budgets \
   -H "Authorization: Bearer $ADEN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "limit_usd": 1000.00,
     "period": "monthly",
-    "action_on_exceed": "alert"
+    "actions": {
+      "80": "alert",
+      "100": "degrade"
+    }
   }'
 ```
 
 ## Model Degradation
 
-Automatically switch to cheaper models when approaching budget:
+Automatically switch to cheaper models when approaching budget limits:
 
 ```bash
-curl -X POST https://kube.acho.io/v1/control/policy/degradations \
+curl -X POST https://api.adenhq.com/v1/degradation-rules \
   -H "Authorization: Bearer $ADEN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "from_model": "gpt-4o",
     "to_model": "gpt-4o-mini",
-    "trigger": "budget_threshold",
-    "threshold_percent": 80,
-    "context_id": "user_123"
+    "trigger_percent": 80
   }'
 ```
 
-When user_123 reaches 80% of their budget, `gpt-4o` requests are automatically served with `gpt-4o-mini`.
+When any budget reaches 80%, `gpt-4o` requests are automatically served with `gpt-4o-mini`. The request succeeds, your users stay unblocked, and you save ~95% on that call.
 
-## Local Cost Control
+## Handling Actions in Your Code
 
-For testing or serverless environments, implement local control with `beforeRequest`:
-
-```typescript
-import { instrument, BeforeRequestResult } from "aden";
-
-// Track costs locally
-const userCosts = new Map<string, number>();
-
-await instrument({
-  emitMetric: myEmitter,
-  sdks: { OpenAI },
-
-  getContextId: () => getCurrentUserId(),
-
-  beforeRequest: async (request): Promise<BeforeRequestResult> => {
-    const userId = getCurrentUserId();
-    const currentCost = userCosts.get(userId) || 0;
-    const estimatedCost = estimateCost(request.model, request.messages);
-
-    // Block if over budget
-    if (currentCost >= 10.0) {
-      return {
-        action: "cancel",
-        reason: "Monthly budget exceeded",
-      };
-    }
-
-    // Degrade expensive models when approaching budget
-    if (currentCost >= 8.0 && request.model === "gpt-4o") {
-      return {
-        action: "degrade",
-        toModel: "gpt-4o-mini",
-        reason: "Approaching budget limit",
-      };
-    }
-
-    // Throttle during high-cost periods
-    if (currentCost >= 5.0) {
-      return {
-        action: "throttle",
-        delayMs: 1000,
-      };
-    }
-
-    // Alert when halfway through budget
-    if (currentCost >= 5.0 && !hasAlertedUser(userId)) {
-      return {
-        action: "alert",
-        level: "warning",
-        message: "50% of monthly budget used",
-      };
-    }
-
-    return { action: "proceed" };
-  },
-});
-```
-
-## BeforeRequestResult Types
-
-```typescript
-type BeforeRequestResult =
-  | { action: "proceed" }
-  | { action: "throttle"; delayMs: number }
-  | { action: "cancel"; reason: string }
-  | { action: "degrade"; toModel: string; reason?: string; delayMs?: number }
-  | { action: "alert"; level: "info" | "warning" | "critical"; message: string };
-```
-
-## Handling Blocked Requests
+### Blocked Requests
 
 When a request is blocked, a `RequestCancelledError` is thrown:
 
@@ -180,34 +133,32 @@ try {
   });
 } catch (error) {
   if (error instanceof RequestCancelledError) {
-    console.log("Request blocked:", error.reason);
     // Show user-friendly message
+    return "You've reached your usage limit for this month.";
   }
   throw error;
 }
 ```
 
-## Handling Degradation
+### Degraded Requests
 
-When a model is degraded, the request proceeds with the cheaper model. You can detect this in responses:
+Degraded requests proceed normally with the cheaper model:
 
 ```typescript
 const response = await openai.chat.completions.create({
-  model: "gpt-4o", // Requested model
+  model: "gpt-4o", // Requested
   messages: [{ role: "user", content: "Hello" }],
 });
 
-// Check actual model used
-console.log(response.model); // Might be "gpt-4o-mini" if degraded
+console.log(response.model); // "gpt-4o-mini" if degraded
 ```
 
-## Alert Handling
+### Alert Callbacks
 
-Configure alert callbacks:
+Route alerts to your notification systems:
 
 ```typescript
 await instrument({
-  // ...
   onAlert: async (alert) => {
     switch (alert.level) {
       case "critical":
@@ -216,84 +167,49 @@ await instrument({
       case "warning":
         await slack.postMessage("#llm-alerts", alert.message);
         break;
-      case "info":
-        console.log("[Info]", alert.message);
-        break;
     }
   },
 });
 ```
 
-## Rate Limiting
+## Reliability
 
-Implement rate limiting based on request count:
+Aden is designed to never break your agents:
 
-```typescript
-const requestCounts = new Map<string, number>();
+- **Fail-open by default**: If the control server is unreachable, requests proceed
+- **Graceful completion**: Mid-response requests complete before blocking takes effect
+- **Overage tolerance**: Less than 5% overage allowed to avoid cutting off critical operations
 
-await instrument({
-  beforeRequest: async (request): Promise<BeforeRequestResult> => {
-    const userId = getCurrentUserId();
-    const count = (requestCounts.get(userId) || 0) + 1;
-    requestCounts.set(userId, count);
-
-    // Limit to 100 requests per minute
-    if (count > 100) {
-      return {
-        action: "throttle",
-        delayMs: 60000, // Wait 1 minute
-      };
-    }
-
-    return { action: "proceed" };
-  },
-});
-
-// Reset counts every minute
-setInterval(() => requestCounts.clear(), 60000);
-```
-
-## Fail-Open vs Fail-Closed
-
-Configure behavior when the control server is unreachable:
+Configure fail behavior:
 
 ```typescript
 await instrument({
   apiKey: process.env.ADEN_API_KEY,
-
-  // Fail-open: Allow requests if server unreachable (default)
-  failOpen: true,
-
-  // Fail-closed: Block all requests if server unreachable
-  // failOpen: false,
+  failOpen: true, // Default: allow requests if server unreachable
 });
 ```
 
-## Cost Estimation
+## Local Development
 
-The SDK doesn't calculate costs directly. Use the control server for accurate cost tracking, or implement local estimation:
+For testing without a server connection, use `beforeRequest` to mock budget logic:
 
 ```typescript
-const COSTS_PER_1K = {
-  "gpt-4o": { input: 0.005, output: 0.015 },
-  "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
-  "claude-3-5-sonnet-latest": { input: 0.003, output: 0.015 },
-};
-
-function estimateCost(model: string, inputTokens: number, outputTokens: number): number {
-  const rates = COSTS_PER_1K[model];
-  if (!rates) return 0;
-  return (inputTokens * rates.input + outputTokens * rates.output) / 1000;
-}
+await instrument({
+  sdks: { OpenAI },
+  beforeRequest: async (request) => {
+    // Your local budget logic here
+    return { action: "proceed" };
+  },
+});
 ```
 
 ## Next Steps
 
 <CardGroup cols={2}>
   <Card title="Agent Tracking" icon="robot" href="/sdk/typescript/agent-tracking">
-    Track multi-agent workflows
+    Track multi-agent workflows with traces and spans
   </Card>
-  <Card title="API Reference" icon="code" href="/sdk/typescript/api-reference">
-    Complete API documentation
+  <Card title="Emitters" icon="tower-broadcast" href="/sdk/typescript/emitters">
+    Send metrics to your observability stack
   </Card>
 </CardGroup>

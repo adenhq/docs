@@ -1,25 +1,37 @@
 ---
 title: "Cost Control"
-description: "Budget enforcement, throttling, and model degradation in Python"
+description: "Stop runaway costs before they happen"
 ---
 
-## Overview
+A single recursive loop can drain thousands of dollars in minutes. A hallucinating agent can spiral into an infinite retry cycle. By the time your LLM provider sends an alert, the damage is done.
 
-The Aden SDK provides real-time cost control through the control server. You can set budgets, throttle requests, degrade to cheaper models, and block requests when limits are exceeded.
+Aden's cost control acts as fast as your agents think - enforcing budgets in under 100ms, before the next API call is made.
 
-## Control Actions
+## How It Works
 
-| Action | Effect | Use Case |
-|--------|--------|----------|
-| **allow** | Request proceeds normally | Within budget |
-| **block** | Request rejected with error | Budget exhausted |
-| **throttle** | Request delayed | Rate limiting |
-| **degrade** | Switch to cheaper model | Approaching budget |
-| **alert** | Proceed with notification | Warning threshold |
+<CardGroup cols={2}>
+  <Card title="Sub-100ms Enforcement" icon="bolt">
+    Budget checks happen inline, not after the fact
+  </Card>
+  <Card title="Granular Budgets" icon="sliders">
+    Set limits per user, agent, feature, or globally
+  </Card>
+</CardGroup>
+
+## The Four Actions
+
+When a budget threshold is hit, Aden can take one of four actions:
+
+| Action | What Happens | When to Use |
+|--------|--------------|-------------|
+| **Alert** | Email notification, request continues | Early warning (80% of budget) |
+| **Throttle** | Artificial delay between calls | Slow the burn rate |
+| **Degrade** | Switch to a cheaper model | Preserve functionality at lower cost |
+| **Block** | Request rejected immediately | Hard budget cap reached |
 
 ## Setup
 
-Connect to the control server:
+Connect to the Aden control server:
 
 ```python
 import os
@@ -32,135 +44,79 @@ instrument(MeterOptions(
     # Track usage per user for individual budgets
     get_context_id=lambda: get_current_user_id(),
 
-    # Handle alerts
+    # Handle alerts in your app
     on_alert=lambda alert: print(f"[{alert.level}] {alert.message}"),
-
-    # What to do if control server is unreachable
-    fail_open=True,  # Allow requests (default)
 ))
 ```
 
-## Budget Configuration
+## Budget Hierarchy
 
-Set budgets via the control server API:
+Budgets can be set at multiple levels. More specific budgets take precedence:
+
+```
+Global Budget ($1,000/month)
+    └── Feature Budget: "customer-support" ($500/month)
+            └── Agent Budget: "support-agent-v2" ($100/month)
+                    └── User Budget: "user_123" ($10/month)
+```
+
+A $10 user budget will block that user even if the global budget has room. This transforms your LLM bill from a single number into a granular balance sheet.
+
+## Setting Budgets
 
 ### Per-User Budget
 
 ```bash
-curl -X POST https://kube.acho.io/v1/control/policy/budgets \
+curl -X POST https://api.adenhq.com/v1/budgets \
   -H "Authorization: Bearer $ADEN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "context_id": "user_123",
     "limit_usd": 10.00,
     "period": "monthly",
-    "action_on_exceed": "block"
+    "actions": {
+      "80": "alert",
+      "100": "block"
+    }
   }'
 ```
 
 ### Global Budget
 
 ```bash
-curl -X POST https://kube.acho.io/v1/control/policy/budgets \
+curl -X POST https://api.adenhq.com/v1/budgets \
   -H "Authorization: Bearer $ADEN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "limit_usd": 1000.00,
     "period": "monthly",
-    "action_on_exceed": "alert"
+    "actions": {
+      "80": "alert",
+      "100": "degrade"
+    }
   }'
 ```
 
 ## Model Degradation
 
-Automatically switch to cheaper models when approaching budget:
+Automatically switch to cheaper models when approaching budget limits:
 
 ```bash
-curl -X POST https://kube.acho.io/v1/control/policy/degradations \
+curl -X POST https://api.adenhq.com/v1/degradation-rules \
   -H "Authorization: Bearer $ADEN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "from_model": "gpt-4o",
     "to_model": "gpt-4o-mini",
-    "trigger": "budget_threshold",
-    "threshold_percent": 80,
-    "context_id": "user_123"
+    "trigger_percent": 80
   }'
 ```
 
-## Local Cost Control
+When any budget reaches 80%, `gpt-4o` requests are automatically served with `gpt-4o-mini`. The request succeeds, your users stay unblocked, and you save ~95% on that call.
 
-For testing or serverless environments, implement local control with `before_request`:
+## Handling Actions in Your Code
 
-```python
-from aden import instrument, MeterOptions, BeforeRequestResult
-
-# Track costs locally
-user_costs: dict[str, float] = {}
-
-def before_request(request) -> BeforeRequestResult:
-    user_id = get_current_user_id()
-    current_cost = user_costs.get(user_id, 0)
-
-    # Block if over budget
-    if current_cost >= 10.0:
-        return BeforeRequestResult.cancel("Monthly budget exceeded")
-
-    # Degrade expensive models when approaching budget
-    if current_cost >= 8.0 and request.model == "gpt-4o":
-        return BeforeRequestResult.degrade(
-            to_model="gpt-4o-mini",
-            reason="Approaching budget limit",
-        )
-
-    # Throttle during high-cost periods
-    if current_cost >= 5.0:
-        return BeforeRequestResult.throttle(delay_ms=1000)
-
-    # Alert when halfway through budget
-    if current_cost >= 5.0 and not has_alerted_user(user_id):
-        return BeforeRequestResult.alert(
-            message="50% of monthly budget used",
-            level="warning",
-        )
-
-    return BeforeRequestResult.proceed()
-
-
-instrument(MeterOptions(
-    emit_metric=my_emitter,
-    before_request=before_request,
-))
-```
-
-## BeforeRequestResult Types
-
-```python
-from aden import BeforeRequestResult
-
-# Allow the request
-BeforeRequestResult.proceed()
-
-# Delay the request
-BeforeRequestResult.throttle(delay_ms=1000)
-
-# Block the request
-BeforeRequestResult.cancel(reason="Budget exceeded")
-
-# Use a cheaper model
-BeforeRequestResult.degrade(
-    to_model="gpt-4o-mini",
-    reason="Cost optimization",
-)
-
-# Send alert and proceed
-BeforeRequestResult.alert(
-    message="High usage detected",
-    level="warning",  # "info", "warning", "critical"
-)
-```
-
-## Handling Blocked Requests
+### Blocked Requests
 
 When a request is blocked, a `RequestCancelledError` is raised:
 
@@ -173,27 +129,26 @@ try:
         messages=[{"role": "user", "content": "Hello"}],
     )
 except RequestCancelledError as e:
-    print(f"Request blocked: {e.reason}")
     # Show user-friendly message
+    return "You've reached your usage limit for this month."
 ```
 
-## Handling Degradation
+### Degraded Requests
 
-When a model is degraded, the request proceeds with the cheaper model:
+Degraded requests proceed normally with the cheaper model:
 
 ```python
 response = client.chat.completions.create(
-    model="gpt-4o",  # Requested model
+    model="gpt-4o",  # Requested
     messages=[{"role": "user", "content": "Hello"}],
 )
 
-# Check actual model used (may differ if degraded)
-print(response.model)  # Might be "gpt-4o-mini"
+print(response.model)  # "gpt-4o-mini" if degraded
 ```
 
-## Alert Handling
+### Alert Callbacks
 
-Configure alert callbacks:
+Route alerts to your notification systems:
 
 ```python
 def handle_alert(alert):
@@ -201,96 +156,43 @@ def handle_alert(alert):
         pagerduty.trigger(alert.message)
     elif alert.level == "warning":
         slack.post_message("#llm-alerts", alert.message)
-    else:
-        print(f"[Info] {alert.message}")
 
 instrument(MeterOptions(
-    emit_metric=my_emitter,
+    api_key=os.environ["ADEN_API_KEY"],
     on_alert=handle_alert,
 ))
 ```
 
-## Complete Local Policy Engine
+## Reliability
 
-A full example implementing local cost control:
+Aden is designed to never break your agents:
+
+- **Fail-open by default**: If the control server is unreachable, requests proceed
+- **Graceful completion**: Mid-response requests complete before blocking takes effect
+- **Overage tolerance**: Less than 5% overage allowed to avoid cutting off critical operations
+
+Configure fail behavior:
 
 ```python
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from aden import instrument, MeterOptions, BeforeRequestResult, MetricEvent
+instrument(MeterOptions(
+    api_key=os.environ["ADEN_API_KEY"],
+    fail_open=True,  # Default: allow requests if server unreachable
+))
+```
 
+## Local Development
 
-@dataclass
-class UserBudget:
-    limit_usd: float
-    spent_usd: float = 0.0
-    period_start: datetime = field(default_factory=datetime.now)
+For testing without a server connection, use `before_request` to mock budget logic:
 
+```python
+from aden import instrument, MeterOptions, BeforeRequestResult
 
-class LocalPolicyEngine:
-    def __init__(self):
-        self.budgets: dict[str, UserBudget] = {}
-        self.model_costs = {
-            "gpt-4o": {"input": 0.005, "output": 0.015},
-            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
-            "claude-3-5-sonnet-latest": {"input": 0.003, "output": 0.015},
-        }
-
-    def set_budget(self, user_id: str, limit_usd: float):
-        self.budgets[user_id] = UserBudget(limit_usd=limit_usd)
-
-    def before_request(self, request) -> BeforeRequestResult:
-        user_id = get_current_user_id()
-        budget = self.budgets.get(user_id)
-
-        if not budget:
-            return BeforeRequestResult.proceed()
-
-        # Reset monthly budget
-        if datetime.now() - budget.period_start > timedelta(days=30):
-            budget.spent_usd = 0
-            budget.period_start = datetime.now()
-
-        usage_percent = (budget.spent_usd / budget.limit_usd) * 100
-
-        # Block at 100%
-        if usage_percent >= 100:
-            return BeforeRequestResult.cancel("Budget exceeded")
-
-        # Degrade at 80%
-        if usage_percent >= 80 and request.model in ["gpt-4o", "claude-3-5-sonnet-latest"]:
-            return BeforeRequestResult.degrade(
-                to_model="gpt-4o-mini",
-                reason=f"Budget at {usage_percent:.0f}%",
-            )
-
-        # Throttle at 50%
-        if usage_percent >= 50:
-            return BeforeRequestResult.throttle(delay_ms=500)
-
-        return BeforeRequestResult.proceed()
-
-    def track_usage(self, event: MetricEvent):
-        user_id = get_current_user_id()
-        budget = self.budgets.get(user_id)
-
-        if budget and event.usage:
-            costs = self.model_costs.get(event.model, {"input": 0, "output": 0})
-            cost = (
-                event.usage.input_tokens * costs["input"] +
-                event.usage.output_tokens * costs["output"]
-            ) / 1000
-            budget.spent_usd += cost
-
-
-# Usage
-engine = LocalPolicyEngine()
-engine.set_budget("user_123", limit_usd=10.00)
+def before_request(request) -> BeforeRequestResult:
+    # Your local budget logic here
+    return BeforeRequestResult.proceed()
 
 instrument(MeterOptions(
-    emit_metric=engine.track_usage,
-    before_request=engine.before_request,
-    get_context_id=get_current_user_id,
+    before_request=before_request,
 ))
 ```
 
@@ -298,9 +200,9 @@ instrument(MeterOptions(
 
 <CardGroup cols={2}>
   <Card title="PydanticAI" icon="robot" href="/sdk/python/pydantic-ai">
-    Integration with PydanticAI framework
+    Type-safe agent framework integration
   </Card>
-  <Card title="LiveKit" icon="microphone" href="/sdk/python/livekit">
-    Voice agent integration
+  <Card title="Frameworks" icon="cubes" href="/sdk/python/frameworks">
+    LangChain, LlamaIndex, and more
   </Card>
 </CardGroup>
