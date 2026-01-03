@@ -6,7 +6,7 @@ description: "Install the Aden TypeScript SDK"
 ## Install the SDK
 
 ```bash
-npm install aden
+npm install aden-ts dotenv
 ```
 
 Or with other package managers:
@@ -14,19 +14,19 @@ Or with other package managers:
 <CodeGroup>
 
 ```bash npm
-npm install aden
+npm install aden-ts dotenv
 ```
 
 ```bash yarn
-yarn add aden
+yarn add aden-ts dotenv
 ```
 
 ```bash pnpm
-pnpm add aden
+pnpm add aden-ts dotenv
 ```
 
 ```bash bun
-bun add aden
+bun add aden-ts dotenv
 ```
 
 </CodeGroup>
@@ -55,6 +55,20 @@ npm install openai @anthropic-ai/sdk @google/generative-ai
 
 </CodeGroup>
 
+## Environment Setup
+
+Create a `.env` file in your project root:
+
+```bash
+OPENAI_API_KEY=sk-xxx
+ADEN_API_URL=https://kube.acho.io
+ADEN_API_KEY=your-aden-api-key
+```
+
+<Info>
+Don't have an Aden API key yet? You can still use the SDK locally with the console emitter for testing.
+</Info>
+
 ## Requirements
 
 | Requirement | Version |
@@ -75,7 +89,8 @@ npm install openai @anthropic-ai/sdk @google/generative-ai
 Create a simple test file:
 
 ```typescript
-import { instrument, createConsoleEmitter, uninstrument } from "aden";
+import "dotenv/config";
+import { instrument, createConsoleEmitter, uninstrument } from "aden-ts";
 import OpenAI from "openai";
 
 async function main() {
@@ -124,11 +139,11 @@ The SDK supports both module formats:
 <CodeGroup>
 
 ```typescript ESM (Recommended)
-import { instrument, createConsoleEmitter } from "aden";
+import { instrument, createConsoleEmitter } from "aden-ts";
 ```
 
 ```javascript CommonJS
-const { instrument, createConsoleEmitter } = require("aden");
+const { instrument, createConsoleEmitter } = require("aden-ts");
 ```
 
 </CodeGroup>

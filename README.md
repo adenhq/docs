@@ -1,8 +1,16 @@
-# Aden API Documentation
+# Aden Documentation
 
-API documentation for Aden's General Ledger and financial management APIs.
+Documentation for Aden's LLM Observability & Cost Control SDK, plus the General Ledger API.
 
-## Development
+## Documentation Structure
+
+- **Getting Started**: Introduction, Quickstart, and Cost Control
+- **TypeScript SDK**: Complete TypeScript/Node.js documentation
+- **Python SDK**: Complete Python documentation
+- **General Ledger API**: Financial management API reference
+- **MCP Server**: Model Context Protocol server for AI-powered operations
+
+## Local Development
 
 Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview documentation changes locally:
 

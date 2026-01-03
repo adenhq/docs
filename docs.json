@@ -15,33 +15,33 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["index", "quickstart", "development"]
+            "pages": ["index", "quickstart"]
+          },
+          {
+            "group": "Use Cases",
+            "pages": ["cost-control"]
           },
           {
             "group": "TypeScript SDK",
             "pages": [
               "sdk/typescript/introduction",
-              "sdk/typescript/support",
               "sdk/typescript/installation",
-              "sdk/typescript/quickstart",
               "sdk/typescript/instrumentation",
               "sdk/typescript/frameworks",
               "sdk/typescript/emitters",
-              "sdk/typescript/cost-control",
-              "sdk/typescript/agent-tracking"
+              "sdk/typescript/agent-tracking",
+              "sdk/typescript/support"
             ]
           },
           {
             "group": "Python SDK",
             "pages": [
               "sdk/python/introduction",
-              "sdk/python/support",
               "sdk/python/installation",
-              "sdk/python/quickstart",
               "sdk/python/instrumentation",
               "sdk/python/frameworks",
               "sdk/python/emitters",
-              "sdk/python/cost-control"
+              "sdk/python/support"
             ]
           }
         ]

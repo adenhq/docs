@@ -1,0 +1,590 @@
+---
+title: "Cost Control"
+description: "Protect your AI application from unexpected costs"
+---
+
+You've instrumented your application and can see every LLM call. Now let's add the safety rails that prevent a single bug from draining your budget.
+
+## Why Cost Control Matters
+
+If you've ever woken up to a surprise $500 bill from OpenAI, you know the pain. Unlike traditional software where costs are predictable, AI applications have a hidden danger: **a single bug or bad prompt can drain your budget in minutes**.
+
+Imagine this: your AI agent gets stuck in a loop, calling GPT-4 thousands of times. By the time you notice, the damage is done. Traditional usage alerts from LLM providers arrive too late—sometimes hours after the spending happened.
+
+**Aden acts as a speed bump between your code and the LLM API.** It tracks every call in real-time and can automatically take action before costs spiral out of control.
+
+## The Four Actions
+
+Aden gives you four levels of protection, from gentle warnings to hard stops:
+
+<CardGroup cols={2}>
+  <Card title="Alert" icon="bell">
+    Send notifications when spending reaches warning thresholds. Your code keeps running, but you know something needs attention.
+  </Card>
+  <Card title="Throttle" icon="gauge">
+    Add delays between requests to slow the burn rate. Gives you time to investigate without completely stopping your users.
+  </Card>
+  <Card title="Degrade" icon="arrow-down">
+    Automatically switch to cheaper models. Your users still get answers, you save money.
+  </Card>
+  <Card title="Block" icon="hand">
+    Hard stop when budget is exhausted. The most effective cost-cutting action—stops the bleeding immediately.
+  </Card>
+</CardGroup>
+
+---
+
+## Setting Up Alerts
+
+Get notified before it's too late. Alerts let you know when you're approaching budget limits—not hours later, but in real-time.
+
+### How it works
+
+```
+Your spending: $0 ─────────── $80 ─────────── $100
+                              │                 │
+                              ↓                 ↓
+                         "Warning!"       "Budget hit!"
+                        (80% alert)      (100% alert)
+```
+
+### Implementation
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { instrument } from "aden-ts";
+    import OpenAI from "openai";
+
+    await instrument({
+      apiKey: process.env.ADEN_API_KEY,
+      serverUrl: process.env.ADEN_API_URL,
+      sdks: { OpenAI },
+
+      // This runs whenever an alert triggers
+      onAlert: (alert) => {
+        console.warn(`[${alert.level}] ${alert.message}`);
+
+        if (alert.level === "warning") {
+          sendSlackMessage(`Budget warning: ${alert.message}`);
+        } else if (alert.level === "critical") {
+          sendPagerDutyAlert(`URGENT: ${alert.message}`);
+        }
+      },
+    });
+
+    // Use your LLM normally - alerts trigger automatically
+    const openai = new OpenAI();
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "Hello!" }],
+    });
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    import asyncio
+    from aden import instrument_async, uninstrument_async, MeterOptions
+
+    def handle_alert(alert):
+        print(f"[{alert.level}] {alert.message}")
+
+        if alert.level == "warning":
+            send_slack_message(f"Budget warning: {alert.message}")
+        elif alert.level == "critical":
+            send_pagerduty_alert(f"URGENT: {alert.message}")
+
+    async def main():
+        await instrument_async(MeterOptions(
+            api_key=os.environ.get("ADEN_API_KEY"),
+            server_url=os.environ.get("ADEN_API_URL"),
+            on_alert=handle_alert,
+        ))
+
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI()
+
+        # Use your LLM normally - alerts trigger automatically
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Hello!"}],
+        )
+
+        await uninstrument_async()
+
+    asyncio.run(main())
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Throttling Runaway Agents
+
+Alerts are great, but what if you want the system to automatically slow down? Throttling adds delays to requests when approaching limits—your agent keeps working, just more slowly.
+
+### How it works
+
+```
+Normal operation:    Request → Response → Request → Response
+                        ↓         ↓          ↓         ↓
+                       0ms       0ms        0ms       0ms
+
+At 90% budget:       Request → [2 sec wait] → Response → Request → [2 sec wait] → Response
+                                    ↓                         ↓
+                                 Slower,                   but still
+                                 but working               working!
+```
+
+<Info>
+Throttling gives you time to investigate without completely stopping your users. Think of it like a speed limiter in a car.
+</Info>
+
+### Implementation
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { instrument } from "aden-ts";
+    import OpenAI from "openai";
+
+    await instrument({
+      apiKey: process.env.ADEN_API_KEY,
+      serverUrl: process.env.ADEN_API_URL,
+      sdks: { OpenAI },
+    });
+
+    const openai = new OpenAI();
+
+    // At 90% budget, this request will automatically wait 2 seconds
+    // Your code doesn't change at all - Aden handles it
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "Generate a report" }],
+    });
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from aden import instrument_async, MeterOptions, BeforeRequestResult
+
+    async def smart_throttle(params, context):
+        """Add delays based on budget usage"""
+        usage_percent = await get_current_budget_usage()
+
+        if usage_percent >= 95:
+            return BeforeRequestResult.throttle(delay_ms=5000)
+        elif usage_percent >= 90:
+            return BeforeRequestResult.throttle(delay_ms=2000)
+
+        return BeforeRequestResult.proceed()
+
+    async def main():
+        await instrument_async(MeterOptions(
+            api_key=os.environ.get("ADEN_API_KEY"),
+            server_url=os.environ.get("ADEN_API_URL"),
+            before_request=smart_throttle,
+        ))
+
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI()
+
+        # Requests automatically throttled based on budget
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Generate a report"}],
+        )
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Automatic Model Degradation
+
+This is one of the most powerful features. When approaching your budget, why pay premium prices? Aden can automatically switch to a cheaper model—your users still get answers, and you save money.
+
+### How it works
+
+```
+Budget at 0-50%:     "gpt-4o"  →  Full power, highest quality
+Budget at 50-100%:   "gpt-4o-mini"  →  Cheaper, still good for most tasks
+Budget exceeded:     [blocked]  →  No more requests
+```
+
+The magic is that **your code still asks for `gpt-4o`**—Aden silently swaps it to the cheaper model behind the scenes.
+
+<Tip>
+Model degradation keeps your application running without any code changes. Your users get answers, your wallet stays happy.
+</Tip>
+
+### Implementation
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { instrument } from "aden-ts";
+    import OpenAI from "openai";
+
+    await instrument({
+      apiKey: process.env.ADEN_API_KEY,
+      serverUrl: process.env.ADEN_API_URL,
+      sdks: { OpenAI },
+    });
+
+    const openai = new OpenAI();
+
+    // Early in the month (0% budget used)
+    await openai.chat.completions.create({
+      model: "gpt-4o",  // You ask for gpt-4o
+      messages: [{ role: "user", content: "Quick question" }],
+    });
+    // → Uses gpt-4o ✓ (full quality)
+
+    // Later (50%+ budget used)
+    await openai.chat.completions.create({
+      model: "gpt-4o",  // You still ask for gpt-4o
+      messages: [{ role: "user", content: "Another question" }],
+    });
+    // → Automatically uses gpt-4o-mini instead (cheaper!)
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    import asyncio
+    from aden import instrument_async, uninstrument_async, MeterOptions
+
+    async def main():
+        await instrument_async(MeterOptions(
+            api_key=os.environ.get("ADEN_API_KEY"),
+            server_url=os.environ.get("ADEN_API_URL"),
+        ))
+
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI()
+
+        # Your code always asks for the premium model
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Help me with this task"}],
+        )
+        # Aden may have used gpt-4o-mini behind the scenes
+        # Your app keeps working, costs stay under control
+
+        await uninstrument_async()
+
+    asyncio.run(main())
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Blocking: The Emergency Stop
+
+Sometimes you need to just stop. When your budget is exhausted, Aden can block requests entirely. This is your emergency stop button—it stops the bleeding immediately.
+
+### How it works
+
+When the budget hits zero, any new LLM request fails with a `RequestCancelledError`. The request **never reaches OpenAI/Anthropic**, so you don't get charged.
+
+<Warning>
+Make sure your application handles `RequestCancelledError` gracefully. Show users a friendly message like "You've reached your usage limit" rather than crashing.
+</Warning>
+
+### Implementation
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { instrument, RequestCancelledError } from "aden-ts";
+    import OpenAI from "openai";
+
+    await instrument({
+      apiKey: process.env.ADEN_API_KEY,
+      serverUrl: process.env.ADEN_API_URL,
+      sdks: { OpenAI },
+      getContextId: () => getCurrentUserId(),  // Track per-user
+    });
+
+    const openai = new OpenAI();
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: "Hello!" }],
+      });
+      console.log(response.choices[0].message.content);
+    } catch (error) {
+      if (error instanceof RequestCancelledError) {
+        // Budget exhausted - request blocked BEFORE reaching OpenAI
+        showUserMessage(
+          "You've reached your usage limit. " +
+          "Upgrade your plan to continue using AI features."
+        );
+      } else {
+        throw error;
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    import asyncio
+    from aden import instrument_async, MeterOptions, RequestCancelledError
+
+    async def main():
+        await instrument_async(MeterOptions(
+            api_key=os.environ.get("ADEN_API_KEY"),
+            server_url=os.environ.get("ADEN_API_URL"),
+        ))
+
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI()
+
+        try:
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": "Hello!"}],
+            )
+            print(response.choices[0].message.content)
+
+        except RequestCancelledError as e:
+            # Budget exhausted - request blocked BEFORE reaching OpenAI
+            show_user_message(
+                "You've reached your usage limit. "
+                "Please upgrade your plan to continue."
+            )
+
+    asyncio.run(main())
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Granular Budgets
+
+Instead of one big budget for your whole organization, set separate budgets for different customers, features, agents, or custom tags.
+
+### Why granular budgets matter
+
+Without granular budgets:
+
+```
+One big budget: $1000
+                  ↓
+Customer A uses $950 (they went wild!)
+                  ↓
+Customer B, C, D... all blocked (unfair!)
+```
+
+With Aden's granular budgets:
+
+```
+Global budget: $1000 (safety net)
+├── Customer A: $100 budget → blocked at $100 (fair!)
+├── Customer B: $100 budget → still has full $100
+├── Customer C: $50 budget  → smaller customer, smaller budget
+└── ... each customer isolated
+```
+
+### Budget types
+
+| Type | Matches On | Use Case |
+|------|------------|----------|
+| **Global** | All requests | Organization-wide safety net |
+| **Customer** | `metadata.customer` | Multi-tenant SaaS apps |
+| **Agent** | `metadata.agent` | Different AI agent tiers |
+| **Feature** | `metadata.feature` | Chat vs. document analysis |
+| **Tag** | `metadata.tag` | Projects, teams, anything else |
+
+### Implementation
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { instrument, enterMeterContext } from "aden-ts";
+    import OpenAI from "openai";
+
+    await instrument({
+      apiKey: process.env.ADEN_API_KEY,
+      serverUrl: process.env.ADEN_API_URL,
+      sdks: { OpenAI },
+    });
+
+    const openai = new OpenAI();
+
+    // In your API route, set the context
+    app.post("/analyze-document", async (req, res) => {
+      enterMeterContext({
+        metadata: {
+          customer: req.user.companyId,     // "acme-corp"
+          feature: "document-analysis",
+        },
+      });
+
+      // This request is validated against:
+      // 1. Global budget ($1000)
+      // 2. Acme-corp's customer budget ($100)
+      // 3. Document-analysis feature budget ($500)
+      // Most restrictive wins!
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: `Analyze: ${req.body.document}` }],
+      });
+    });
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from aden import instrument_async, MeterOptions
+
+    async def main():
+        await instrument_async(MeterOptions(
+            api_key=os.environ.get("ADEN_API_KEY"),
+            server_url=os.environ.get("ADEN_API_URL"),
+        ))
+
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI()
+
+        # Tag the request with metadata for budget matching
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Analyze this document..."}],
+            extra_body={
+                "metadata": {
+                    "customer": "acme-corp",
+                    "feature": "document-analysis",
+                }
+            },
+        )
+
+        # Validated against multiple budgets:
+        # - Global budget ($1000)
+        # - Acme-corp's customer budget ($100)
+        # - Document-analysis feature budget ($500)
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Fail Open for Resilience
+
+What happens if Aden's control server goes down? By default, Aden "fails open"—requests proceed normally, ensuring your application stays available.
+
+<Info>
+Fail-open means your users never see downtime due to Aden. You'll get an alert about the connectivity issue, but your app keeps working.
+</Info>
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { instrument } from "aden-ts";
+    import OpenAI from "openai";
+
+    await instrument({
+      apiKey: process.env.ADEN_API_KEY,
+      serverUrl: process.env.ADEN_API_URL,
+      sdks: { OpenAI },
+
+      failOpen: true,  // Default - requests proceed if server unreachable
+
+      onAlert: (alert) => {
+        if (alert.message.includes("server unreachable")) {
+          console.warn("Aden server down - operating without cost controls");
+          notifyOpsTeam("Aden server unreachable");
+        }
+      },
+    });
+
+    // Even if Aden's server is down, your app keeps working
+    const openai = new OpenAI();
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "Hello!" }],
+    });
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from aden import instrument_async, MeterOptions
+
+    async def main():
+        await instrument_async(MeterOptions(
+            api_key=os.environ.get("ADEN_API_KEY"),
+            server_url=os.environ.get("ADEN_API_URL"),
+            fail_open=True,  # Default - requests proceed if unreachable
+            on_alert=lambda alert: print(f"Alert: {alert.message}"),
+        ))
+
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI()
+
+        # Your app keeps working even if Aden's server is down
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Hello!"}],
+        )
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Quick Reference
+
+<AccordionGroup>
+  <Accordion title="Action Summary">
+    | Action | When to Use | What Happens |
+    |--------|-------------|--------------|
+    | **Alert** | Early warning (80%) | Notification sent, request proceeds |
+    | **Throttle** | Slow down (90%) | Request delayed, then proceeds |
+    | **Degrade** | Save money (50%) | Cheaper model used automatically |
+    | **Block** | Hard stop (100%) | Request fails with error |
+  </Accordion>
+
+  <Accordion title="Budget Hierarchy">
+    | Budget Type | Example | Use For |
+    |-------------|---------|---------|
+    | Global | $1000/month | Organization-wide safety net |
+    | Customer | $100/customer | Multi-tenant fairness |
+    | Agent | $200/agent-type | Tiered pricing |
+    | Feature | $500/feature | Feature-level tracking |
+    | Tag | Custom | Teams, projects |
+  </Accordion>
+
+  <Accordion title="Error Handling">
+    Always catch `RequestCancelledError` to handle blocked requests gracefully:
+
+    ```typescript
+    try {
+      await openai.chat.completions.create({ ... });
+    } catch (error) {
+      if (error instanceof RequestCancelledError) {
+        showUserMessage("Usage limit reached");
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="TypeScript SDK" icon="js" href="/sdk/typescript/introduction">
+    TypeScript SDK documentation
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdk/python/introduction">
+    Python SDK documentation
+  </Card>
+</CardGroup>

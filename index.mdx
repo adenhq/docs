@@ -43,47 +43,15 @@ When your Legal team updates a compliance policy, your Sales agent knows instant
   </Card>
 </CardGroup>
 
-## Quick Start
+## Get Started
 
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    import { instrument, createConsoleEmitter } from "aden";
-    import OpenAI from "openai";
-
-    // Instrument at startup
-    await instrument({
-      emitMetric: createConsoleEmitter({ pretty: true }),
-      sdks: { OpenAI },
-    });
-
-    // Use your SDK normally - metrics captured automatically
-    const openai = new OpenAI();
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: "Hello!" }],
-    });
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    from aden import instrument, MeterOptions, create_console_emitter
-    from openai import OpenAI
-
-    # Instrument at startup
-    instrument(MeterOptions(
-        emit_metric=create_console_emitter(pretty=True),
-    ))
-
-    # Use your SDK normally - metrics captured automatically
-    client = OpenAI()
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": "Hello!"}],
-    )
-    ```
-  </Tab>
-</Tabs>
+<Card
+  title="Quickstart Guide"
+  icon="rocket"
+  href="/quickstart"
+>
+  Instrument your first LLM call in under 5 minutes.
+</Card>
 
 ## What Makes Aden Different
 

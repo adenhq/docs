@@ -3,7 +3,7 @@ title: "Quickstart"
 description: "Instrument your first LLM call in under 5 minutes"
 ---
 
-By the end of this guide, you'll see every LLM call automatically tracked with latency, tokens, and cost. This is the foundation for connecting your agents to Aden's shared intelligence network.
+By the end of this guide, you'll see every LLM call automatically tracked with latency, tokens, and cost.
 
 ## Prerequisites
 
@@ -21,46 +21,71 @@ By the end of this guide, you'll see every LLM call automatically tracked with l
 <Tabs>
   <Tab title="TypeScript">
     ```bash
-    npm install aden openai
+    npm install aden-ts dotenv openai
     ```
   </Tab>
   <Tab title="Python">
     ```bash
-    pip install aden openai
+    pip install aden-py python-dotenv openai
     ```
   </Tab>
 </Tabs>
 
-## Step 2: Instrument Your Application
+## Step 2: Set Up Environment
+
+Create a `.env` file in your project root:
+
+```bash
+OPENAI_API_KEY=sk-xxx
+ADEN_API_URL=https://kube.acho.io
+ADEN_API_KEY=your-aden-api-key
+```
+
+<Info>
+Don't have an Aden API key yet? You can still follow along using the console emitter for local testing.
+</Info>
+
+## Step 3: Instrument Your Application
 
 Add instrumentation **before** creating any LLM clients. This wraps the SDK to capture metrics automatically.
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    import { instrument, createConsoleEmitter } from "aden";
+    import "dotenv/config";
     import OpenAI from "openai";
+    import { instrument, createConsoleEmitter } from "aden-ts";
 
     // Instrument at startup - must come before creating clients
     await instrument({
+      apiKey: process.env.ADEN_API_KEY,
+      serverUrl: process.env.ADEN_API_URL,
       emitMetric: createConsoleEmitter({ pretty: true }),
+      onAlert: (alert) => console.log(`[Aden ${alert.level}] ${alert.message}`),
       sdks: { OpenAI },
     });
     ```
   </Tab>
   <Tab title="Python">
     ```python
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+
     from aden import instrument, MeterOptions, create_console_emitter
 
     # Instrument at startup - must come before creating clients
     instrument(MeterOptions(
+        api_key=os.environ.get("ADEN_API_KEY"),
+        server_url=os.environ.get("ADEN_API_URL"),
         emit_metric=create_console_emitter(pretty=True),
+        on_alert=lambda alert: print(f"[Aden {alert.level}] {alert.message}"),
     ))
     ```
   </Tab>
 </Tabs>
 
-## Step 3: Make Your First Call
+## Step 4: Make Your First Call
 
 Use your LLM SDK exactly as you normally would. Aden captures metrics transparently.
 
@@ -92,83 +117,197 @@ Use your LLM SDK exactly as you normally would. Aden captures metrics transparen
   </Tab>
 </Tabs>
 
-## Step 4: See It Working
+## Step 5: Handle Budget Errors
 
-Run your code. You'll see the analytics tab being populated and data being streamed into Aden.
-Every LLM call is now tracked with latency, token usage, model, and estimated cost.
+When cost controls are active, requests may be blocked if budget is exhausted. Handle this gracefully:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { RequestCancelledError } from "aden-ts";
+
+    async function runAgent(userInput: string): Promise<string> {
+      try {
+        const openai = new OpenAI();
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: userInput }],
+        });
+        return response.choices[0]?.message?.content ?? "";
+      } catch (e) {
+        if (e instanceof RequestCancelledError) {
+          return `Sorry, your budget has been exhausted. ${e.message}`;
+        }
+        throw e;
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from aden import RequestCancelledError
+
+    def run_agent(user_input: str) -> str:
+        try:
+            client = OpenAI()
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": user_input}],
+            )
+            return response.choices[0].message.content
+        except RequestCancelledError as e:
+            return f"Sorry, your budget has been exhausted. {e}"
+    ```
+  </Tab>
+</Tabs>
+
+## Step 6: Clean Up on Exit
+
+Always call `uninstrument()` when your application shuts down to flush remaining metrics:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { uninstrument } from "aden-ts";
+
+    // In your shutdown handler
+    await uninstrument();
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from aden import uninstrument
+
+    # In your shutdown handler
+    uninstrument()
+    ```
+  </Tab>
+</Tabs>
+
+## Complete Example
+
+Here's everything together:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import "dotenv/config";
+    import OpenAI from "openai";
+    import {
+      instrument,
+      uninstrument,
+      createConsoleEmitter,
+      RequestCancelledError,
+    } from "aden-ts";
+
+    // Initialize Aden FIRST
+    await instrument({
+      apiKey: process.env.ADEN_API_KEY,
+      serverUrl: process.env.ADEN_API_URL,
+      emitMetric: createConsoleEmitter({ pretty: true }),
+      onAlert: (alert) => console.log(`[Aden ${alert.level}] ${alert.message}`),
+      sdks: { OpenAI },
+    });
+
+    // Your agent function
+    async function runAgent(userInput: string): Promise<string> {
+      try {
+        const openai = new OpenAI();
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: userInput }],
+        });
+        return response.choices[0]?.message?.content ?? "";
+      } catch (e) {
+        if (e instanceof RequestCancelledError) {
+          return `Sorry, your budget has been exhausted. ${e.message}`;
+        }
+        throw e;
+      }
+    }
+
+    // Main entry point
+    async function main() {
+      try {
+        const result = await runAgent("Hello, world!");
+        console.log(result);
+      } finally {
+        await uninstrument();
+      }
+    }
+
+    main();
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    from openai import OpenAI
+    from aden import (
+        instrument,
+        uninstrument,
+        MeterOptions,
+        create_console_emitter,
+        RequestCancelledError,
+    )
+
+    # Initialize Aden FIRST
+    instrument(MeterOptions(
+        api_key=os.environ.get("ADEN_API_KEY"),
+        server_url=os.environ.get("ADEN_API_URL"),
+        emit_metric=create_console_emitter(pretty=True),
+        on_alert=lambda alert: print(f"[Aden {alert.level}] {alert.message}"),
+    ))
+
+    # Your agent function
+    def run_agent(user_input: str) -> str:
+        try:
+            client = OpenAI()
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": user_input}],
+            )
+            return response.choices[0].message.content
+        except RequestCancelledError as e:
+            return f"Sorry, your budget has been exhausted. {e}"
+
+    # Main entry point
+    if __name__ == "__main__":
+        try:
+            result = run_agent("Hello, world!")
+            print(result)
+        finally:
+            uninstrument()
+    ```
+  </Tab>
+</Tabs>
 
 ## You're Instrumented
 
-Your agent is ready to join the shared intelligence network. In production, Aden connects your agents to shared memory - where every department's knowledge flows to every other, and your agents learn from each interaction across your organization.
+Run your code and you'll see metrics in your console:
 
-## Connect to Production
+```
+[aden] openai/gpt-4o | 45 tokens | 892ms | $0.00135
+```
 
-<Tabs>
-  <Tab title="I have credentials">
-    Replace the console emitter with your Aden server connection:
-
-    <Tabs>
-      <Tab title="TypeScript">
-        ```typescript
-        await instrument({
-          apiKey: process.env.ADEN_API_KEY,
-          serverUrl: process.env.ADEN_API_URL,
-          sdks: { OpenAI },
-
-          // Track usage per user for budgets
-          getContextId: () => getCurrentUserId(),
-
-          // Handle real-time alerts
-          onAlert: (alert) => {
-            console.warn(`[${alert.level}] ${alert.message}`);
-          },
-        });
-        ```
-      </Tab>
-      <Tab title="Python">
-        ```python
-        instrument(MeterOptions(
-            api_key=os.environ["ADEN_API_KEY"],
-            server_url=os.environ.get("ADEN_API_URL"),
-
-            # Track usage per user for budgets
-            get_context_id=lambda: get_current_user_id(),
-
-            # Handle real-time alerts
-            on_alert=lambda alert: print(f"[{alert.level}] {alert.message}"),
-        ))
-        ```
-      </Tab>
-    </Tabs>
-
-    Your calls now stream to the Aden dashboard in real-time, with analytics populating as your agents run.
-  </Tab>
-  <Tab title="Get access">
-    Ready to see your metrics in a live dashboard with shared intelligence across your organization?
-
-    <Card
-      title="Book a Discovery Call"
-      icon="calendar"
-      href="https://calendly.com/contact_aden/discovery-call"
-    >
-      Get your API key, dashboard access, and connect your agents to shared intelligence.
-    </Card>
-  </Tab>
-</Tabs>
+Every LLM call is now tracked with latency, token usage, model, and estimated cost.
 
 ## Next Steps
 
 <CardGroup cols={2}>
+  <Card title="Cost Control" icon="shield" href="/cost-control">
+    Set budgets, alerts, and automatic model degradation
+  </Card>
   <Card title="TypeScript SDK" icon="js" href="/sdk/typescript/introduction">
     Multi-provider support, frameworks, and advanced configuration
   </Card>
   <Card title="Python SDK" icon="python" href="/sdk/python/introduction">
     Complete Python documentation and examples
   </Card>
-  <Card title="Cost Control" icon="shield" href="/sdk/typescript/cost-control">
-    Set budgets, rate limits, and automatic model degradation
-  </Card>
-  <Card title="Agent Tracking" icon="robot" href="/sdk/typescript/agent-tracking">
-    Trace multi-agent workflows with spans and named agents
+  <Card title="Book a Call" icon="calendar" href="https://calendly.com/contact_aden/discovery-call">
+    Get your API key and dashboard access
   </Card>
 </CardGroup>

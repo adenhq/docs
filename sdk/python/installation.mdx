@@ -5,12 +5,8 @@ description: "Install the Aden Python SDK"
 
 ## Install the SDK
 
-The Aden SDK has zero required dependencies. Install optional provider support as needed.
-
-### Basic Installation
-
 ```bash
-pip install aden
+pip install aden-py python-dotenv
 ```
 
 ### With Provider Support
@@ -18,19 +14,19 @@ pip install aden
 <CodeGroup>
 
 ```bash OpenAI
-pip install aden[openai]
+pip install aden-py[openai]
 ```
 
 ```bash Anthropic
-pip install aden[anthropic]
+pip install aden-py[anthropic]
 ```
 
 ```bash Google Gemini
-pip install aden[gemini]
+pip install aden-py[gemini]
 ```
 
 ```bash All Providers
-pip install aden[all]
+pip install aden-py[all]
 ```
 
 </CodeGroup>
@@ -40,34 +36,36 @@ pip install aden[all]
 <CodeGroup>
 
 ```bash PydanticAI
-pip install aden[pydantic-ai]
+pip install aden-py[pydantic-ai]
 ```
 
 ```bash LiveKit Voice Agents
-pip install aden[livekit]
+pip install aden-py[livekit]
 ```
 
 </CodeGroup>
 
-### Database Backends
+## Environment Setup
 
-<CodeGroup>
-
-```bash TimescaleDB (Async)
-pip install aden[timescale]
-```
-
-```bash TimescaleDB (Sync)
-pip install aden[timescale-sync]
-```
-
-</CodeGroup>
-
-### Development
+Add to your shell configuration (`~/.bashrc` or `~/.zshrc`):
 
 ```bash
-pip install aden[dev]
+export OPENAI_API_KEY=sk-xxx
+export ADEN_API_URL=https://kube.acho.io
+export ADEN_API_KEY=your-aden-api-key
 ```
+
+Or create a `.env` file:
+
+```bash
+OPENAI_API_KEY=sk-xxx
+ADEN_API_URL=https://kube.acho.io
+ADEN_API_KEY=your-aden-api-key
+```
+
+<Info>
+Don't have an Aden API key yet? You can still use the SDK locally with the console emitter for testing.
+</Info>
 
 ## Requirements
 
@@ -83,22 +81,23 @@ pip install aden[dev]
 | `tiktoken` | >= 0.5.0 | OpenAI token counting |
 | `anthropic` | >= 0.20.0 | Anthropic provider |
 | `google-generativeai` | >= 0.4.0 | Gemini provider |
+| `aiohttp` | >= 3.8.0 | Async control agent |
 
 ## Verify Installation
 
-Create a simple test file:
-
 ```python
-from aden import instrument, MeterOptions, create_console_emitter, uninstrument, get_instrumented_sdks
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+from aden import instrument, MeterOptions, create_console_emitter, uninstrument
 
 # Instrument the SDK
 instrument(MeterOptions(
     emit_metric=create_console_emitter(pretty=True),
 ))
 
-result = get_instrumented_sdks()
-print(f"Instrumented: {result}")
-# Output: InstrumentationResult(openai=True, anthropic=False, gemini=False)
+print("Instrumentation successful!")
 
 # Clean up
 uninstrument()
@@ -118,34 +117,19 @@ python test.py
 python -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 .venv\Scripts\activate     # Windows
-pip install aden[all]
+pip install aden-py[all]
 ```
 
 ```bash Poetry
-poetry add aden
+poetry add aden-py
 poetry add openai anthropic google-generativeai  # Optional
 ```
 
 ```bash uv
-uv pip install aden[all]
+uv pip install aden-py[all]
 ```
 
 </CodeGroup>
-
-## Type Checking
-
-The SDK includes type annotations. For type checking with mypy:
-
-```toml
-# pyproject.toml
-[tool.mypy]
-python_version = "3.10"
-strict = true
-```
-
-```bash
-mypy your_code.py
-```
 
 ## Next Steps
 

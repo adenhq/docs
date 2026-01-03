@@ -3,9 +3,11 @@ title: "TypeScript SDK"
 description: "LLM Observability & Cost Control SDK for TypeScript"
 ---
 
-## Overview
+## Package
 
-The Aden TypeScript SDK provides real-time usage tracking, budget enforcement, and cost control for LLM applications. It automatically instruments OpenAI, Anthropic Claude, and Google Gemini API calls without modifying your application code.
+```bash
+npm install aden-ts
+```
 
 <Card
   title="GitHub Repository"
@@ -15,23 +17,6 @@ The Aden TypeScript SDK provides real-time usage tracking, budget enforcement, a
   View source code and contribute
 </Card>
 
-## Key Features
-
-<CardGroup cols={2}>
-  <Card title="Multi-Provider Support" icon="layer-group">
-    Works with OpenAI, Anthropic, and Google Gemini with a single integration.
-  </Card>
-  <Card title="Zero Code Changes" icon="wand-magic-sparkles">
-    Automatic instrumentation - just call `instrument()` once at startup.
-  </Card>
-  <Card title="Real-Time Cost Control" icon="shield-halved">
-    Budget limits, throttling, and automatic model degradation.
-  </Card>
-  <Card title="Comprehensive Metrics" icon="chart-simple">
-    Track tokens, latency, costs, tool calls, and more.
-  </Card>
-</CardGroup>
-
 ## Supported Providers
 
 | Provider | SDK Package | Status |
@@ -39,19 +24,18 @@ The Aden TypeScript SDK provides real-time usage tracking, budget enforcement, a
 | OpenAI | `openai` | Full support (Chat, Responses API, streaming) |
 | Anthropic | `@anthropic-ai/sdk` | Full support (Messages API, streaming, tools) |
 | Google Gemini | `@google/generative-ai` | Full support (generateContent, chat) |
+| Google GenAI | `@google/genai` | Full support (for Google ADK) |
 
 ## Framework Compatibility
 
-The SDK works seamlessly with popular AI frameworks:
+| Framework | Integration |
+|-----------|-------------|
+| Vercel AI SDK | Via fetch instrumentation |
+| LangChain | Instruments underlying providers |
+| LlamaIndex | Works with instrumented providers |
+| Mastra | Full agent stack tracking |
 
-- **Vercel AI SDK** - Via fetch instrumentation
-- **LangChain** - Instruments underlying LLM providers
-- **LlamaIndex** - Works with instrumented providers
-- **Mastra** - Full agent stack tracking support
-
-## What Gets Tracked
-
-Every LLM API call is captured with:
+## Metrics Captured
 
 | Metric | Description |
 |--------|-------------|
@@ -66,49 +50,25 @@ Every LLM API call is captured with:
 | `trace_id` | OpenTelemetry-compatible trace ID |
 | `agent_stack` | Named agent context for multi-agent systems |
 
-## Quick Example
-
-```typescript
-import { instrument, createConsoleEmitter } from "aden";
-import OpenAI from "openai";
-
-// 1. Instrument at startup (before creating clients)
-await instrument({
-  emitMetric: createConsoleEmitter({ pretty: true }),
-  sdks: { OpenAI },
-});
-
-// 2. Use your SDK normally - metrics are captured automatically
-const openai = new OpenAI();
-const response = await openai.chat.completions.create({
-  model: "gpt-4o",
-  messages: [{ role: "user", content: "Hello!" }],
-});
-
-// Console output:
-// {
-//   provider: "openai",
-//   model: "gpt-4o",
-//   input_tokens: 10,
-//   output_tokens: 25,
-//   latency_ms: 342,
-//   ...
-// }
-```
-
-## Next Steps
+## SDK Documentation
 
 <CardGroup cols={2}>
   <Card title="Installation" icon="download" href="/sdk/typescript/installation">
     Install the SDK and peer dependencies
   </Card>
-  <Card title="Quick Start" icon="rocket" href="/sdk/typescript/quickstart">
-    Get up and running in 5 minutes
-  </Card>
   <Card title="Instrumentation" icon="plug" href="/sdk/typescript/instrumentation">
-    Learn about global and per-instance instrumentation
+    Global and per-instance instrumentation
   </Card>
-  <Card title="Cost Control" icon="shield" href="/sdk/typescript/cost-control">
-    Set up budgets and control actions
+  <Card title="Frameworks" icon="layer-group" href="/sdk/typescript/frameworks">
+    Framework-specific integrations
+  </Card>
+  <Card title="Emitters" icon="tower-broadcast" href="/sdk/typescript/emitters">
+    Metric destinations (console, HTTP, file)
+  </Card>
+  <Card title="Agent Tracking" icon="robot" href="/sdk/typescript/agent-tracking">
+    Track multi-agent workflows
+  </Card>
+  <Card title="Support" icon="life-ring" href="/sdk/typescript/support">
+    Troubleshooting and getting help
   </Card>
 </CardGroup>
