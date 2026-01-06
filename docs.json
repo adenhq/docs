@@ -15,11 +15,17 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["index", "quickstart"]
+            "pages": [
+              "index",
+              "getting-started/quickstart",
+              "getting-started/create-account"
+            ]
           },
           {
             "group": "Use Cases",
-            "pages": ["cost-control"]
+            "pages": [
+              "cost-control"
+            ]
           },
           {
             "group": "TypeScript SDK",
