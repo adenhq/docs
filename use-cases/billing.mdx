@@ -1,0 +1,32 @@
+---
+title: "Billing"
+description: "Programmatically notify downstream systems when a billing event occurs."
+---
+
+## Objective
+
+Programmatically notify downstream systems (Stripe, internal ERP, or Slack) when a billing event occurs.
+
+## Functional Specifications
+
+### Endpoint Configuration
+A user interface field allows users to input their Target URL for webhook events.
+
+### Authentication
+Support for **HMAC-SHA256** signing headers ensures that the receiver can verify the request originated from your system.
+
+### Event Triggers
+Configure webhooks for key billing lifecycle events:
+*   `billing.period_end`: Automated monthly or weekly notification.
+*   `billing.threshold_reached`: Real-time notification when a user hits a defined limit (e.g., $500).
+*   `billing.manual_export`: Triggered manually via the UI.
+
+## Data Flow & Prerequisites
+
+To bridge the Pricing Simulator and the Billing Webhook, the backend must handle several "hidden" logic components.
+
+### Metadata Mapping
+Engineers must ensure every telemetry record (`span_id`, `trace_id`) is decorated with a `tenant_id` at the ingestion layer. Without this, costs cannot be aggregated per customer.
+
+### State Management Table
+A database table is required to store the "Active Pricing Model" for each tenant, ensuring consistent billing calculations.

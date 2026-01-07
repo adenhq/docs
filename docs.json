@@ -24,7 +24,10 @@
           {
             "group": "Use Cases",
             "pages": [
-              "cost-control"
+              "use-cases/cost-control",
+              "use-cases/pricing-simulator",
+              "use-cases/billing",
+              "use-cases/agent-performance-monitoring"
             ]
           },
           {

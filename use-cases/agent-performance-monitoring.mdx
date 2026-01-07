@@ -1,0 +1,1034 @@
+---
+title: "Performance Monitoring"
+description: "Programmatically manage and query agent performance metrics."
+---
+
+The AgentLens API allows you to programmatically manage, query, and extend the performance metrics of your AI agents. Use these endpoints to power your own internal dashboards or to feed data into the AgentLens Customer Portal.
+
+## Overview
+
+The Performance Dashboard API provides a RESTful interface for accessing agent performance metrics, cost analytics, and custom metric definitions. This API enables developers to programmatically monitor their AI agents, track spending, and define business-specific KPIs.
+
+**Base URL:** `https://api.adenhq.com/v1/analytics`
+
+---
+
+## Authentication
+
+All API requests require authentication via API key in the header:
+
+```
+Authorization: Bearer sk-ant-xxxxxx
+x-api-version: 2025-01-06
+```
+
+---
+
+## Data Models
+
+### Core Metric Types
+
+```typescript
+enum MetricType {
+  COUNTER     = "counter"      // Cumulative values (requests, tokens)
+  GAUGE       = "gauge"        // Point-in-time values (latency, rate)
+  HISTOGRAM   = "histogram"    // Distribution data (latency percentiles)
+  TIMESERIES  = "timeseries"   // Time-indexed values
+}
+
+enum AggregationMethod {
+  SUM         = "sum"
+  AVG         = "avg"
+  MIN         = "min"
+  MAX         = "max"
+  P50         = "p50"
+  P95         = "p95"
+  P99         = "p99"
+  COUNT       = "count"
+  RATE        = "rate"
+}
+```
+
+### Standard Metric Schema
+
+```typescript
+interface Metric {
+  id: string                          // Unique metric identifier
+  name: string                        // Human-readable name
+  type: MetricType                    // Metric classification
+  unit: string                        // "usd", "ms", "tokens", "percent", "count"
+  description: string                 // Metric description
+  value: number | null                // Current/aggregated value
+  timestamp: string                   // ISO 8601 timestamp
+  metadata: Record<string, string>    // Additional context
+}
+```
+
+### Time Series Data Point
+
+```typescript
+interface DataPoint {
+  timestamp: string                   // ISO 8601 timestamp
+  value: number                       // Metric value at timestamp
+  dimensions: Record<string, string>  // Grouping dimensions (agent_id, model, customer_id)
+}
+
+interface TimeSeriesResponse {
+  metric_id: string
+  metric_name: string
+  unit: string
+  granularity: string                 // "minute", "hour", "day", "week", "month"
+  data: DataPoint[]
+  aggregation: AggregationMethod
+}
+```
+
+### Percentile Distribution
+
+```typescript
+interface PercentileDistribution {
+  p50: number
+  p75: number
+  p90: number
+  p95: number
+  p99: number
+  min: number
+  max: number
+  mean: number
+  count: number
+}
+```
+
+---
+
+## Standard Metrics Catalog
+
+### Cost Metrics
+
+| Metric ID | Name | Type | Unit | Description |
+|-----------|------|------|------|-------------|
+| `cost.total` | Total Cost | counter | usd | Cumulative spend across all agents |
+| `cost.daily` | Daily Cost | timeseries | usd | Cost aggregated by day |
+| `cost.by_model` | Cost by Model | gauge | usd | Spend breakdown by model |
+| `cost.by_agent` | Cost by Agent | gauge | usd | Spend breakdown by agent |
+| `cost.per_completion` | Cost per Completion | gauge | usd | Average cost per successful completion |
+| `cost.cache_savings` | Cache Savings | counter | usd | Money saved via prompt caching |
+| `cost.burn_rate` | Budget Burn Rate | gauge | percent | Current spend rate vs. budget |
+
+### Usage Metrics
+
+| Metric ID | Name | Type | Unit | Description |
+|-----------|------|------|------|-------------|
+| `usage.requests.total` | Total Requests | counter | count | Total API requests |
+| `usage.requests.daily` | Daily Requests | timeseries | count | Requests aggregated by day |
+| `usage.tokens.total` | Total Tokens | counter | tokens | Total tokens consumed |
+| `usage.tokens.input` | Input Tokens | counter | tokens | Prompt/input tokens |
+| `usage.tokens.output` | Output Tokens | counter | tokens | Completion/output tokens |
+
+### Performance Metrics
+
+| Metric ID | Name | Type | Unit | Description |
+|-----------|------|------|------|-------------|
+| `perf.latency.avg` | Average Latency | gauge | ms | Mean response time |
+| `perf.latency.distribution` | Latency Distribution | histogram | ms | Full latency percentiles |
+| `perf.latency.p50` | Latency P50 | gauge | ms | Median latency |
+| `perf.latency.p95` | Latency P95 | gauge | ms | 95th percentile latency |
+| `perf.latency.p99` | Latency P99 | gauge | ms | 99th percentile latency |
+
+### Autonomy Metrics
+
+| Metric ID | Name | Type | Unit | Description |
+|-----------|------|------|------|-------------|
+| `autonomy.intervention_rate` | Intervention Rate | gauge | percent | Sessions requiring human handoff |
+| `autonomy.goal_completion_rate` | Goal Completion Rate | gauge | percent | Sessions achieving business intent |
+| `autonomy.steps_to_resolution` | Steps to Resolution | gauge | count | Avg turns to solve a problem |
+| `autonomy.self_correction_rate` | Self-Correction Rate | gauge | percent | Errors auto-recovered without human |
+| `autonomy.deflection_rate` | Deflection Rate | gauge | percent | Requests resolved without human |
+
+### Quality Metrics
+
+| Metric ID | Name | Type | Unit | Description |
+|-----------|------|------|------|-------------|
+| `quality.tool_success_rate` | Tool Usage Success Rate | gauge | percent | Successful tool/API calls |
+| `quality.hallucination_rate` | Hallucination Rate | gauge | percent | Responses not grounded in context |
+| `quality.loop_rate` | Loop Rate | gauge | percent | Sessions with repeated actions |
+| `quality.sentiment_shift` | Sentiment Shift | gauge | score | Change in user sentiment (-1 to +1) |
+
+---
+
+## API Endpoints
+
+### 1. Get Single Metric (Point-in-Time)
+
+Retrieve the current value of a specific metric.
+
+```
+GET /metrics/{metric_id}
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `metric_id` | string | Yes | The metric identifier (e.g., `cost.total`) |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `at` | string | No | now | ISO 8601 timestamp for point-in-time query |
+| `agent_id` | string | No | all | Filter by specific agent |
+| `model` | string | No | all | Filter by model (e.g., `claude-sonnet-4-5-20250929`) |
+| `customer_id` | string | No | all | Filter by end-customer (multi-tenant) |
+
+**Request Example:**
+
+```bash
+curl -X GET "https://api.adenhq.com/v1/analytics/metrics/cost.total?agent_id=agent_abc123" \
+  -H "Authorization: Bearer sk-ant-xxxxxx" \
+  -H "x-api-version: 2025-01-06"
+```
+
+**Response:**
+
+```json
+{
+  "id": "cost.total",
+  "name": "Total Cost",
+  "type": "counter",
+  "unit": "usd",
+  "value": 1547.82,
+  "timestamp": "2025-01-06T14:30:00Z",
+  "metadata": {
+    "agent_id": "agent_abc123",
+    "period_start": "2025-01-01T00:00:00Z"
+  }
+}
+```
+
+---
+
+### 2. Get Metric Time Series
+
+Retrieve metric values over a time range.
+
+```
+GET /metrics/{metric_id}/series
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `metric_id` | string | Yes | The metric identifier |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `start` | string | Yes | — | Start of time range (ISO 8601) |
+| `end` | string | No | now | End of time range (ISO 8601) |
+| `granularity` | string | No | auto | `minute`, `hour`, `day`, `week`, `month` |
+| `aggregation` | string | No | sum | Aggregation method for the granularity |
+| `agent_id` | string | No | all | Filter by agent |
+| `model` | string | No | all | Filter by model |
+| `customer_id` | string | No | all | Filter by end-customer |
+| `group_by` | string | No | none | Dimension to group by: `agent_id`, `model`, `customer_id` |
+| `limit` | integer | No | 1000 | Max data points returned |
+
+**Request Example:**
+
+```bash
+curl -X GET "https://api.adenhq.com/v1/analytics/metrics/cost.daily/series?\
+start=2025-01-01T00:00:00Z&\
+end=2025-01-06T23:59:59Z&\
+granularity=day&\
+group_by=model" \
+  -H "Authorization: Bearer sk-ant-xxxxxx" \
+  -H "x-api-version: 2025-01-06"
+```
+
+**Response:**
+
+```json
+{
+  "metric_id": "cost.daily",
+  "metric_name": "Daily Cost",
+  "unit": "usd",
+  "granularity": "day",
+  "aggregation": "sum",
+  "start": "2025-01-01T00:00:00Z",
+  "end": "2025-01-06T23:59:59Z",
+  "data": [
+    {
+      "timestamp": "2025-01-01T00:00:00Z",
+      "value": 234.56,
+      "dimensions": { "model": "claude-sonnet-4-5-20250929" }
+    },
+    {
+      "timestamp": "2025-01-01T00:00:00Z",
+      "value": 89.12,
+      "dimensions": { "model": "claude-haiku-4-5-20251001" }
+    },
+    {
+      "timestamp": "2025-01-02T00:00:00Z",
+      "value": 256.78,
+      "dimensions": { "model": "claude-sonnet-4-5-20250929" }
+    }
+  ]
+}
+```
+
+---
+
+### 3. Get Percentile Distribution
+
+Retrieve distribution data for histogram-type metrics.
+
+```
+GET /metrics/{metric_id}/distribution
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `start` | string | Yes | — | Start of time range |
+| `end` | string | No | now | End of time range |
+| `agent_id` | string | No | all | Filter by agent |
+| `model` | string | No | all | Filter by model |
+| `buckets` | integer | No | 20 | Number of histogram buckets |
+
+**Request Example:**
+
+```bash
+curl -X GET "https://api.adenhq.com/v1/analytics/metrics/perf.latency.distribution/distribution?\
+start=2025-01-06T00:00:00Z" \
+  -H "Authorization: Bearer sk-ant-xxxxxx" \
+  -H "x-api-version: 2025-01-06"
+```
+
+**Response:**
+
+```json
+{
+  "metric_id": "perf.latency.distribution",
+  "metric_name": "Latency Distribution",
+  "unit": "ms",
+  "start": "2025-01-06T00:00:00Z",
+  "end": "2025-01-06T14:30:00Z",
+  "percentiles": {
+    "p50": 245,
+    "p75": 380,
+    "p90": 520,
+    "p95": 680,
+    "p99": 1250,
+    "min": 89,
+    "max": 3400,
+    "mean": 312,
+    "count": 15420
+  },
+  "histogram": [
+    { "bucket": "0-100", "count": 1542 },
+    { "bucket": "100-200", "count": 4521 },
+    { "bucket": "200-300", "count": 3890 },
+    { "bucket": "300-500", "count": 2156 },
+    { "bucket": "500-1000", "count": 2845 },
+    { "bucket": "1000+", "count": 466 }
+  ]
+}
+```
+
+---
+
+### 4. Batch Get Metrics
+
+Retrieve multiple metrics in a single request.
+
+```
+POST /metrics/batch
+```
+
+**Request Body:**
+
+```json
+{
+  "metric_ids": ["cost.total", "usage.requests.total", "perf.latency.avg"],
+  "filters": {
+    "agent_id": "agent_abc123",
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-06T23:59:59Z"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "metrics": [
+    {
+      "id": "cost.total",
+      "name": "Total Cost",
+      "type": "counter",
+      "unit": "usd",
+      "value": 1547.82,
+      "timestamp": "2025-01-06T14:30:00Z"
+    },
+    {
+      "id": "usage.requests.total",
+      "name": "Total Requests",
+      "type": "counter",
+      "unit": "count",
+      "value": 45230,
+      "timestamp": "2025-01-06T14:30:00Z"
+    },
+    {
+      "id": "perf.latency.avg",
+      "name": "Average Latency",
+      "type": "gauge",
+      "unit": "ms",
+      "value": 312,
+      "timestamp": "2025-01-06T14:30:00Z"
+    }
+  ],
+  "filters_applied": {
+    "agent_id": "agent_abc123",
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-06T23:59:59Z"
+  }
+}
+```
+
+---
+
+### 5. Get Dashboard Summary
+
+Retrieve all KPIs for dashboard rendering.
+
+```
+GET /dashboard/summary
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `period` | string | No | 30d | Predefined period: `24h`, `7d`, `30d`, `90d`, `ytd` |
+| `start` | string | No | — | Custom start (overrides period) |
+| `end` | string | No | now | Custom end |
+| `agent_id` | string | No | all | Filter by agent |
+| `customer_id` | string | No | all | Filter by customer |
+
+**Response:**
+
+```json
+{
+  "period": {
+    "start": "2024-12-07T00:00:00Z",
+    "end": "2025-01-06T14:30:00Z",
+    "label": "30d"
+  },
+  "kpis": {
+    "total_cost": {
+      "value": 4521.67,
+      "unit": "usd",
+      "change": 12.5,
+      "change_period": "vs previous 30d"
+    },
+    "total_requests": {
+      "value": 128450,
+      "unit": "count",
+      "change": 8.2,
+      "change_period": "vs previous 30d"
+    },
+    "total_tokens": {
+      "value": 45200000,
+      "unit": "tokens",
+      "change": 15.1,
+      "change_period": "vs previous 30d"
+    },
+    "avg_latency": {
+      "value": 298,
+      "unit": "ms",
+      "change": -5.3,
+      "change_period": "vs previous 30d"
+    },
+    "cache_savings": {
+      "value": 892.45,
+      "unit": "usd",
+      "change": 22.1,
+      "change_period": "vs previous 30d"
+    }
+  },
+  "top_agents_by_spend": [
+    { "agent_id": "support-bot", "cost": 1823.45, "requests": 52340 },
+    { "agent_id": "sales-assistant", "cost": 1456.22, "requests": 41200 },
+    { "agent_id": "data-analyst", "cost": 892.00, "requests": 23100 }
+  ],
+  "cost_by_model": [
+    { "model": "claude-sonnet-4-5-20250929", "cost": 3200.45, "percentage": 70.8 },
+    { "model": "claude-haiku-4-5-20251001", "cost": 1021.22, "percentage": 22.6 },
+    { "model": "claude-opus-4-5-20251101", "cost": 300.00, "percentage": 6.6 }
+  ]
+}
+```
+
+---
+
+## Custom Metrics API
+
+Custom metrics allow developers to define business-specific KPIs using formulas based on standard metrics.
+
+### Custom Metric Schema
+
+```typescript
+interface CustomMetricDefinition {
+  id: string                          // Auto-generated or user-defined
+  name: string                        // Display name
+  description: string                 // What this metric measures
+  formula: FormulaExpression          // Calculation definition
+  unit: string                        // Result unit
+  created_at: string                  // ISO 8601 timestamp
+  updated_at: string                  // ISO 8601 timestamp
+  is_active: boolean                  // Whether metric is being calculated
+}
+
+interface FormulaExpression {
+  type: "arithmetic" | "conditional" | "aggregate"
+  expression: string                  // Formula string
+  inputs: FormulaInput[]              // Referenced metrics
+  conditions?: ConditionalRule[]      // Optional conditional logic
+}
+
+interface FormulaInput {
+  variable: string                    // Variable name in formula (e.g., "$a")
+  metric_id: string                   // Standard metric to reference
+  aggregation?: AggregationMethod     // How to aggregate the input
+  filters?: Record<string, string>    // Filters to apply to input
+}
+
+interface ConditionalRule {
+  condition: string                   // Condition expression
+  then_value: string | number         // Value if true
+  else_value: string | number         // Value if false
+}
+```
+
+---
+
+### 6. List Custom Metrics
+
+```
+GET /metrics/custom
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `is_active` | boolean | No | all | Filter by active status |
+| `limit` | integer | No | 50 | Max results |
+| `offset` | integer | No | 0 | Pagination offset |
+
+**Response:**
+
+```json
+{
+  "custom_metrics": [
+    {
+      "id": "cm_roi_per_session",
+      "name": "ROI per Session",
+      "description": "Revenue generated minus cost per agent session",
+      "unit": "usd",
+      "is_active": true,
+      "created_at": "2025-01-02T10:00:00Z",
+      "updated_at": "2025-01-05T14:30:00Z"
+    },
+    {
+      "id": "cm_efficiency_score",
+      "name": "Agent Efficiency Score",
+      "description": "Composite score of completion rate, speed, and cost",
+      "unit": "score",
+      "is_active": true,
+      "created_at": "2025-01-03T09:15:00Z",
+      "updated_at": "2025-01-03T09:15:00Z"
+    }
+  ],
+  "total": 2,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+---
+
+### 7. Get Custom Metric Definition
+
+```
+GET /metrics/custom/{custom_metric_id}
+```
+
+**Response:**
+
+```json
+{
+  "id": "cm_roi_per_session",
+  "name": "ROI per Session",
+  "description": "Revenue generated minus cost per agent session",
+  "unit": "usd",
+  "formula": {
+    "type": "arithmetic",
+    "expression": "($a - $b) / $c",
+    "inputs": [
+      {
+        "variable": "$a",
+        "metric_id": "custom.revenue_attributed",
+        "aggregation": "sum"
+      },
+      {
+        "variable": "$b",
+        "metric_id": "cost.total",
+        "aggregation": "sum"
+      },
+      {
+        "variable": "$c",
+        "metric_id": "usage.sessions.total",
+        "aggregation": "count"
+      }
+    ]
+  },
+  "is_active": true,
+  "created_at": "2025-01-02T10:00:00Z",
+  "updated_at": "2025-01-05T14:30:00Z"
+}
+```
+
+---
+
+### 8. Create Custom Metric
+
+```
+POST /metrics/custom
+```
+
+**Request Body:**
+
+```json
+{
+  "id": "cm_cost_per_deflection",
+  "name": "Cost per Deflection",
+  "description": "Average cost to successfully deflect a support ticket",
+  "unit": "usd",
+  "formula": {
+    "type": "arithmetic",
+    "expression": "$a / ($b * $c)",
+    "inputs": [
+      {
+        "variable": "$a",
+        "metric_id": "cost.total",
+        "aggregation": "sum",
+        "filters": { "agent_id": "support-bot" }
+      },
+      {
+        "variable": "$b",
+        "metric_id": "usage.sessions.total",
+        "aggregation": "count",
+        "filters": { "agent_id": "support-bot" }
+      },
+      {
+        "variable": "$c",
+        "metric_id": "autonomy.deflection_rate",
+        "aggregation": "avg",
+        "filters": { "agent_id": "support-bot" }
+      }
+    ]
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "cm_cost_per_deflection",
+  "name": "Cost per Deflection",
+  "description": "Average cost to successfully deflect a support ticket",
+  "unit": "usd",
+  "formula": { ... },
+  "is_active": true,
+  "created_at": "2025-01-06T15:00:00Z",
+  "updated_at": "2025-01-06T15:00:00Z"
+}
+```
+
+---
+
+### 9. Update Custom Metric
+
+```
+PATCH /metrics/custom/{custom_metric_id}
+```
+
+**Request Body (partial update):**
+
+```json
+{
+  "name": "Cost per Ticket Deflection",
+  "description": "Updated: Average cost to deflect a support ticket without human intervention",
+  "is_active": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "cm_cost_per_deflection",
+  "name": "Cost per Ticket Deflection",
+  "description": "Updated: Average cost to deflect a support ticket without human intervention",
+  "unit": "usd",
+  "formula": { ... },
+  "is_active": true,
+  "created_at": "2025-01-06T15:00:00Z",
+  "updated_at": "2025-01-06T15:45:00Z"
+}
+```
+
+---
+
+### 10. Delete Custom Metric
+
+```
+DELETE /metrics/custom/{custom_metric_id}
+```
+
+**Response:**
+
+```json
+{
+  "deleted": true,
+  "id": "cm_cost_per_deflection"
+}
+```
+
+---
+
+### 11. Evaluate Custom Metric
+
+Query the calculated value of a custom metric.
+
+```
+GET /metrics/custom/{custom_metric_id}/evaluate
+```
+
+**Query Parameters:**
+
+Same as standard metric time series endpoint (`start`, `end`, `granularity`, etc.)
+
+**Response:**
+
+```json
+{
+  "metric_id": "cm_cost_per_deflection",
+  "metric_name": "Cost per Ticket Deflection",
+  "unit": "usd",
+  "value": 0.42,
+  "timestamp": "2025-01-06T15:00:00Z",
+  "formula_breakdown": {
+    "$a": { "metric_id": "cost.total", "value": 1823.45 },
+    "$b": { "metric_id": "usage.sessions.total", "value": 52340 },
+    "$c": { "metric_id": "autonomy.deflection_rate", "value": 0.083 }
+  },
+  "period": {
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-06T15:00:00Z"
+  }
+}
+```
+
+---
+
+### 12. Validate Custom Metric Formula
+
+Test a formula before creating a metric.
+
+```
+POST /metrics/custom/validate
+```
+
+**Request Body:**
+
+```json
+{
+  "formula": {
+    "type": "arithmetic",
+    "expression": "$a / $b * 100",
+    "inputs": [
+      { "variable": "$a", "metric_id": "autonomy.goal_completion_rate" },
+      { "variable": "$b", "metric_id": "autonomy.steps_to_resolution" }
+    ]
+  },
+  "test_period": {
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-06T00:00:00Z"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "valid": true,
+  "test_result": {
+    "value": 23.5,
+    "inputs_resolved": {
+      "$a": 94.0,
+      "$b": 4.0
+    }
+  },
+  "warnings": []
+}
+```
+
+**Error Response (invalid formula):**
+
+```json
+{
+  "valid": false,
+  "errors": [
+    {
+      "code": "INVALID_METRIC_REFERENCE",
+      "message": "Metric 'invalid.metric.id' does not exist",
+      "variable": "$b"
+    }
+  ]
+}
+```
+
+---
+
+## Formula Expression Language
+
+Custom metrics use a simple expression language for calculations.
+
+### Supported Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `+` | Addition | `$a + $b` |
+| `-` | Subtraction | `$a - $b` |
+| `*` | Multiplication | `$a * $b` |
+| `/` | Division | `$a / $b` |
+| `%` | Modulo | `$a % $b` |
+| `^` | Power | `$a ^ 2` |
+| `()` | Grouping | `($a + $b) / $c` |
+
+### Built-in Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `abs(x)` | Absolute value | `abs($a - $b)` |
+| `min(a, b)` | Minimum of two values | `min($a, $b)` |
+| `max(a, b)` | Maximum of two values | `max($a, $b)` |
+| `round(x, n)` | Round to n decimals | `round($a / $b, 2)` |
+| `if(cond, then, else)` | Conditional | `if($b > 0, $a / $b, 0)` |
+| `coalesce(a, b)` | First non-null | `coalesce($a, 0)` |
+
+### Example Formulas
+
+**Efficiency Score (composite):**
+```
+round((($gcr * 0.4) + ((1 - $intervention) * 0.3) + (1 / $steps * 0.3)) * 100, 1)
+```
+
+**Cost per Successful Task:**
+```
+if($success_count > 0, $total_cost / $success_count, 0)
+```
+
+**Normalized Latency Score (0-100):**
+```
+max(0, 100 - (($p95_latency - 200) / 10))
+```
+
+---
+
+## Webhooks & Alerts (Future)
+
+### Alert Rule Schema
+
+```typescript
+interface AlertRule {
+  id: string
+  name: string
+  metric_id: string                   // Standard or custom metric
+  condition: {
+    operator: "gt" | "lt" | "gte" | "lte" | "eq"
+    threshold: number
+    duration: string                  // e.g., "5m", "1h" - sustained period
+  }
+  actions: AlertAction[]
+  is_enabled: boolean
+}
+
+interface AlertAction {
+  type: "webhook" | "email" | "slack"
+  target: string                      // URL, email, or channel
+}
+```
+
+---
+
+## Error Responses
+
+All errors follow a consistent format:
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "INVALID_TIME_RANGE",
+    "message": "Start time must be before end time",
+    "param": "start",
+    "documentation_url": "https://docs.adenhq.com/errors/INVALID_TIME_RANGE"
+  }
+}
+```
+
+### Error Codes
+
+| HTTP Status | Error Type | Description |
+|-------------|------------|-------------|
+| 400 | `invalid_request_error` | Malformed request or invalid parameters |
+| 401 | `authentication_error` | Invalid or missing API key |
+| 403 | `permission_error` | Insufficient permissions for resource |
+| 404 | `not_found_error` | Metric or resource not found |
+| 409 | `conflict_error` | Resource already exists (duplicate ID) |
+| 429 | `rate_limit_error` | Too many requests |
+| 500 | `api_error` | Internal server error |
+
+---
+
+## Rate Limits
+
+| Endpoint Category | Requests per Minute |
+|-------------------|---------------------|
+| Read (GET) | 300 |
+| Write (POST/PATCH/DELETE) | 60 |
+| Batch operations | 30 |
+
+Rate limit headers are included in all responses:
+
+```
+X-RateLimit-Limit: 300
+X-RateLimit-Remaining: 287
+X-RateLimit-Reset: 1704553200
+```
+
+---
+
+## SDK Examples
+
+### Python SDK
+
+```python
+from anthropic import AnalyticsClient
+
+client = AnalyticsClient(api_key="sk-ant-xxxxxx")
+
+# Get dashboard summary
+summary = client.dashboard.summary(period="30d")
+print(f"Total cost: ${summary.kpis.total_cost.value}")
+
+# Query time series
+cost_trend = client.metrics.series(
+    metric_id="cost.daily",
+    start="2025-01-01",
+    end="2025-01-06",
+    granularity="day",
+    group_by="model"
+)
+
+for point in cost_trend.data:
+    print(f"{point.timestamp}: ${point.value} ({point.dimensions['model']})")
+
+# Create custom metric
+custom_metric = client.metrics.custom.create(
+    id="cm_efficiency",
+    name="Agent Efficiency",
+    unit="score",
+    formula={
+        "type": "arithmetic",
+        "expression": "($gcr * $deflection) / $steps",
+        "inputs": [
+            {"variable": "$gcr", "metric_id": "autonomy.goal_completion_rate"},
+            {"variable": "$deflection", "metric_id": "autonomy.deflection_rate"},
+            {"variable": "$steps", "metric_id": "autonomy.steps_to_resolution"}
+        ]
+    }
+)
+
+# Evaluate custom metric
+result = client.metrics.custom.evaluate(
+    custom_metric_id="cm_efficiency",
+    start="2025-01-01",
+    end="2025-01-06"
+)
+print(f"Efficiency score: {result.value}")
+```
+
+### TypeScript SDK
+
+```typescript
+import { AnalyticsClient } from '@anthropic/analytics';
+
+const client = new AnalyticsClient({ apiKey: 'sk-ant-xxxxxx' });
+
+// Get single metric
+const totalCost = await client.metrics.get('cost.total', {
+  agentId: 'support-bot',
+});
+console.log(`Total cost: $${totalCost.value}`);
+
+// Get latency distribution
+const latency = await client.metrics.distribution('perf.latency.distribution', {
+  start: '2025-01-06T00:00:00Z',
+});
+console.log(`P95 Latency: ${latency.percentiles.p95}ms`);
+
+// Batch query
+const kpis = await client.metrics.batch({
+  metricIds: ['cost.total', 'usage.requests.total', 'perf.latency.avg'],
+  filters: {
+    agentId: 'support-bot',
+    start: '2025-01-01T00:00:00Z',
+  },
+});
+
+// Create and evaluate custom metric
+const customMetric = await client.metrics.custom.create({
+  id: 'cm_cost_per_success',
+  name: 'Cost per Successful Completion',
+  unit: 'usd',
+  formula: {
+    type: 'arithmetic',
+    expression: '$cost / $successes',
+    inputs: [
+      { variable: '$cost', metricId: 'cost.total' },
+      { variable: '$successes', metricId: 'usage.completions.successful', aggregation: 'count' },
+    ],
+  },
+});
+
+const evaluation = await client.metrics.custom.evaluate('cm_cost_per_success', {
+  start: '2025-01-01T00:00:00Z',
+});
+console.log(`Cost per success: $${evaluation.value.toFixed(2)}`);
+```
+
+
+## Support
+
+For API support, contact contact@adenhq.com.

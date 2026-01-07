@@ -1,0 +1,1239 @@
+---
+title: "Pricing Simulator"
+description: "A tool to build a pricing model to convert usage records to a bill."
+---
+
+## Capabilities
+
+The Pricing Simulator allows you to build a pricing model to convert usage records to a bill. You can interact with the UI to select the telemetry source (session/trace/span/raw) and the multiplier to see the predicted earning and margin from the pricing model.
+
+# Pricing Simulator API Design
+
+## Overview
+
+This document defines the API specification for a pricing simulator that enables users to build, manage, and test pricing models that convert usage records into bills. The API is designed to be SDK-compatible and follows REST conventions.
+
+**Base URL:** `https://api.{domain}/v1`
+
+---
+
+## Authentication
+
+All API requests require authentication via Bearer token in the Authorization header:
+
+```
+Authorization: Bearer <api_key>
+```
+
+---
+
+## 1. Pricing Models API
+
+### Data Model
+
+```typescript
+interface PricingModel {
+  model_id: string;                    // Unique identifier (auto-generated or user-provided)
+  version: string;                     // Semantic version (e.g., "1.2.0")
+  name: string;                        // Human-readable name
+  description?: string;                // Optional description
+  currency: string;                    // ISO 4217 currency code (e.g., "USD")
+  status: "draft" | "active" | "archived";
+  rules: PricingRule[];
+  platform_fees?: PlatformFees;
+  metadata?: Record<string, any>;      // Custom key-value pairs
+  created_at: string;                  // ISO 8601 timestamp
+  updated_at: string;                  // ISO 8601 timestamp
+  created_by: string;                  // User/API key identifier
+}
+
+interface PricingRule {
+  rule_id: string;                     // Unique within the model
+  display_name: string;
+  telemetry_source: "session" | "trace" | "span" | "raw";
+  aggregation_method: "COUNT" | "SUM" | "AVG" | "MAX" | "MIN";
+  aggregation_field?: string;          // Required when aggregation_method is not COUNT
+  pricing_type: "tiered" | "flat_multiplier" | "threshold" | "flat_rate";
+  
+  // For tiered pricing
+  tiers?: Tier[];
+  
+  // For flat_multiplier pricing
+  multiplier?: number;
+  per_unit_count?: number;
+  
+  // For threshold pricing
+  threshold?: number;
+  overage_rate?: number;
+  
+  // For flat_rate pricing
+  flat_amount?: number;
+  
+  // Optional filters
+  filters?: RuleFilter[];
+}
+
+interface Tier {
+  upto: number | "unlimited";
+  unit_price: number;
+  flat_fee?: number;                   // Optional flat fee for this tier
+}
+
+interface RuleFilter {
+  field: string;
+  operator: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "in" | "contains";
+  value: any;
+}
+
+interface PlatformFees {
+  base_monthly_fee?: number;
+  support_tier?: string;
+  additional_fees?: AdditionalFee[];
+}
+
+interface AdditionalFee {
+  name: string;
+  amount: number;
+  frequency: "monthly" | "annually" | "one_time";
+}
+```
+
+---
+
+### 1.1 List Pricing Models
+
+Retrieve a paginated list of pricing models.
+
+**Endpoint:** `GET /pricing-models`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | integer | 20 | Number of results per page (1-100) |
+| `cursor` | string | - | Pagination cursor from previous response |
+| `status` | string | - | Filter by status: `draft`, `active`, `archived` |
+| `search` | string | - | Search by name or description |
+| `sort_by` | string | `created_at` | Sort field: `created_at`, `updated_at`, `name` |
+| `sort_order` | string | `desc` | Sort order: `asc`, `desc` |
+
+**Request:**
+```bash
+GET /v1/pricing-models?limit=10&status=active
+```
+
+**Response:** `200 OK`
+```json
+{
+  "data": [
+    {
+      "model_id": "plan_ent_premium_001",
+      "version": "1.2.0",
+      "name": "Enterprise Usage-Based Plan",
+      "description": "Tiered pricing based on spans and raw event ingestion",
+      "currency": "USD",
+      "status": "active",
+      "rules_count": 4,
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-02-20T14:45:00Z"
+    }
+  ],
+  "pagination": {
+    "has_more": true,
+    "next_cursor": "eyJpZCI6InBsYW5fMDAxIiwidHMiOjE3MDU0MjAwMDB9",
+    "total_count": 45
+  }
+}
+```
+
+---
+
+### 1.2 Get Pricing Model
+
+Retrieve a single pricing model by ID.
+
+**Endpoint:** `GET /pricing-models/{model_id}`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `model_id` | string | The pricing model identifier |
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `version` | string | latest | Specific version to retrieve |
+| `include_history` | boolean | false | Include version history |
+
+**Request:**
+```bash
+GET /v1/pricing-models/plan_ent_premium_001?include_history=true
+```
+
+**Response:** `200 OK`
+```json
+{
+  "data": {
+    "model_id": "plan_ent_premium_001",
+    "version": "1.2.0",
+    "name": "Enterprise Usage-Based Plan",
+    "description": "Tiered pricing based on spans and raw event ingestion",
+    "currency": "USD",
+    "status": "active",
+    "rules": [
+      {
+        "rule_id": "rule_spans_001",
+        "display_name": "Distributed Tracing Spans",
+        "telemetry_source": "span",
+        "aggregation_method": "COUNT",
+        "pricing_type": "tiered",
+        "tiers": [
+          { "upto": 1000000, "unit_price": 0.00 },
+          { "upto": 10000000, "unit_price": 0.00005 },
+          { "upto": "unlimited", "unit_price": 0.00003 }
+        ]
+      },
+      {
+        "rule_id": "rule_raw_001",
+        "display_name": "Raw Logs Ingestion",
+        "telemetry_source": "raw",
+        "aggregation_method": "SUM",
+        "aggregation_field": "payload_size_bytes",
+        "pricing_type": "flat_multiplier",
+        "multiplier": 0.15,
+        "per_unit_count": 1073741824
+      },
+      {
+        "rule_id": "rule_threshold_001",
+        "display_name": "Usage Threshold",
+        "telemetry_source": "raw",
+        "aggregation_method": "SUM",
+        "aggregation_field": "usage_total_tokens",
+        "pricing_type": "threshold",
+        "threshold": 1024000000
+      },
+      {
+        "rule_id": "rule_session_001",
+        "display_name": "User Sessions",
+        "telemetry_source": "session",
+        "aggregation_method": "COUNT",
+        "pricing_type": "flat_multiplier",
+        "multiplier": 0.01,
+        "per_unit_count": 1
+      }
+    ],
+    "platform_fees": {
+      "base_monthly_fee": 500.00,
+      "support_tier": "premium_24_7"
+    },
+    "metadata": {},
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-02-20T14:45:00Z",
+    "created_by": "user_abc123"
+  },
+  "version_history": [
+    { "version": "1.2.0", "created_at": "2024-02-20T14:45:00Z", "change_summary": "Added threshold rule" },
+    { "version": "1.1.0", "created_at": "2024-02-01T09:00:00Z", "change_summary": "Updated tier pricing" },
+    { "version": "1.0.0", "created_at": "2024-01-15T10:30:00Z", "change_summary": "Initial version" }
+  ]
+}
+```
+
+---
+
+### 1.3 Create Pricing Model
+
+Create a new pricing model.
+
+**Endpoint:** `POST /pricing-models`
+
+**Request Body:**
+
+```json
+{
+  "model_id": "plan_ent_premium_001",      // Optional - auto-generated if not provided
+  "version": "1.0.0",                       // Optional - defaults to "1.0.0"
+  "name": "Enterprise Usage-Based Plan",
+  "description": "Tiered pricing based on spans and raw event ingestion",
+  "currency": "USD",
+  "status": "draft",                        // Optional - defaults to "draft"
+  "rules": [
+    {
+      "rule_id": "rule_spans_001",          // Optional - auto-generated if not provided
+      "display_name": "Distributed Tracing Spans",
+      "telemetry_source": "span",
+      "aggregation_method": "COUNT",
+      "pricing_type": "tiered",
+      "tiers": [
+        { "upto": 1000000, "unit_price": 0.00 },
+        { "upto": 10000000, "unit_price": 0.00005 },
+        { "upto": "unlimited", "unit_price": 0.00003 }
+      ]
+    }
+  ],
+  "platform_fees": {
+    "base_monthly_fee": 500.00,
+    "support_tier": "premium_24_7"
+  },
+  "metadata": {
+    "internal_code": "ENT-001",
+    "department": "sales"
+  }
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "data": {
+    "model_id": "plan_ent_premium_001",
+    "version": "1.0.0",
+    "name": "Enterprise Usage-Based Plan",
+    "status": "draft",
+    "created_at": "2024-03-01T10:00:00Z",
+    "updated_at": "2024-03-01T10:00:00Z"
+  }
+}
+```
+
+**Validation Rules:**
+- `name` is required and must be 1-255 characters
+- `currency` must be a valid ISO 4217 code
+- `rules` array must contain at least one rule
+- Each rule must have valid `telemetry_source` and `pricing_type` combinations
+- Tiered pricing must have at least one tier with the last tier having `upto: "unlimited"`
+- `multiplier` and `per_unit_count` are required for `flat_multiplier` pricing type
+
+---
+
+### 1.4 Update Pricing Model
+
+Update an existing pricing model. This creates a new version.
+
+**Endpoint:** `PUT /pricing-models/{model_id}`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `model_id` | string | The pricing model identifier |
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `version_bump` | string | `minor` | Version increment: `major`, `minor`, `patch` |
+
+**Request Body:**
+```json
+{
+  "name": "Enterprise Usage-Based Plan v2",
+  "description": "Updated tiered pricing",
+  "rules": [
+    {
+      "rule_id": "rule_spans_001",
+      "display_name": "Distributed Tracing Spans",
+      "telemetry_source": "span",
+      "aggregation_method": "COUNT",
+      "pricing_type": "tiered",
+      "tiers": [
+        { "upto": 2000000, "unit_price": 0.00 },
+        { "upto": 20000000, "unit_price": 0.00004 },
+        { "upto": "unlimited", "unit_price": 0.000025 }
+      ]
+    }
+  ],
+  "change_summary": "Increased free tier and adjusted pricing"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "data": {
+    "model_id": "plan_ent_premium_001",
+    "version": "1.3.0",
+    "previous_version": "1.2.0",
+    "name": "Enterprise Usage-Based Plan v2",
+    "status": "draft",
+    "updated_at": "2024-03-01T12:00:00Z"
+  }
+}
+```
+
+---
+
+### 1.5 Partial Update (Patch) Pricing Model
+
+Update specific fields without replacing the entire model.
+
+**Endpoint:** `PATCH /pricing-models/{model_id}`
+
+**Request Body:**
+```json
+{
+  "status": "active",
+  "platform_fees": {
+    "base_monthly_fee": 600.00
+  }
+}
+```
+
+**Response:** `200 OK`
+
+---
+
+### 1.6 Delete Pricing Model
+
+Delete a pricing model (soft delete - moves to archived status).
+
+**Endpoint:** `DELETE /pricing-models/{model_id}`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `hard_delete` | boolean | false | Permanently delete (requires admin) |
+| `version` | string | all | Specific version to delete, or "all" |
+
+**Response:** `200 OK`
+```json
+{
+  "data": {
+    "model_id": "plan_ent_premium_001",
+    "status": "archived",
+    "deleted_at": "2024-03-01T15:00:00Z"
+  }
+}
+```
+
+---
+
+### 1.7 Clone Pricing Model
+
+Create a copy of an existing pricing model.
+
+**Endpoint:** `POST /pricing-models/{model_id}/clone`
+
+**Request Body:**
+```json
+{
+  "new_model_id": "plan_ent_premium_002",   // Optional
+  "new_name": "Enterprise Plan - APAC",
+  "include_metadata": true
+}
+```
+
+**Response:** `201 Created`
+
+---
+
+### 1.8 Validate Pricing Model
+
+Validate a pricing model configuration without saving.
+
+**Endpoint:** `POST /pricing-models/validate`
+
+**Request Body:** Same as Create Pricing Model
+
+**Response:** `200 OK`
+```json
+{
+  "valid": true,
+  "warnings": [
+    {
+      "rule_id": "rule_spans_001",
+      "message": "Large gap between tier 1 and tier 2 thresholds"
+    }
+  ],
+  "errors": []
+}
+```
+
+**Response:** `400 Bad Request` (if invalid)
+```json
+{
+  "valid": false,
+  "warnings": [],
+  "errors": [
+    {
+      "field": "rules[0].tiers",
+      "code": "INVALID_TIER_ORDER",
+      "message": "Tiers must be in ascending order"
+    }
+  ]
+}
+```
+
+---
+
+## 2. Pricing Simulation API
+
+### Data Model
+
+```typescript
+interface SimulationRequest {
+  model_id?: string;                   // Use existing model OR
+  pricing_model?: PricingModel;        // Provide inline model for testing
+  
+  usage_data: UsageDataInput;
+  
+  simulation_options?: SimulationOptions;
+}
+
+interface UsageDataInput {
+  // Option 1: Time range query (pulls from your telemetry store)
+  time_range?: {
+    start: string;                     // ISO 8601
+    end: string;                       // ISO 8601
+  };
+  customer_id?: string;
+  
+  // Option 2: Direct usage records
+  records?: UsageRecord[];
+  
+  // Option 3: Aggregated summaries
+  aggregated?: AggregatedUsage;
+}
+
+interface UsageRecord {
+  telemetry_source: "session" | "trace" | "span" | "raw";
+  timestamp: string;
+  count?: number;                      // For pre-aggregated data
+  properties: Record<string, any>;     // e.g., { payload_size_bytes: 1024 }
+}
+
+interface AggregatedUsage {
+  sessions?: { count: number };
+  traces?: { count: number };
+  spans?: { count: number };
+  raw?: {
+    count: number;
+    payload_size_bytes_total?: number;
+    usage_total_tokens?: number;
+  };
+}
+
+interface SimulationOptions {
+  include_breakdown: boolean;          // Detailed per-rule breakdown
+  include_what_if: boolean;            // Include cost at different usage levels
+  compare_models?: string[];           // Compare with other model_ids
+  currency_conversion?: string;        // Convert result to different currency
+  apply_discounts?: Discount[];        // Apply promotional discounts
+}
+
+interface Discount {
+  type: "percentage" | "fixed";
+  value: number;
+  applies_to?: string[];               // Rule IDs, or all if empty
+}
+
+interface SimulationResult {
+  simulation_id: string;
+  model_id: string;
+  model_version: string;
+  
+  summary: {
+    total_amount: number;
+    currency: string;
+    period: { start: string; end: string };
+    
+    subtotals: {
+      rules_total: number;
+      platform_fees_total: number;
+      discounts_total: number;
+    };
+  };
+  
+  breakdown?: RuleBreakdown[];
+  what_if?: WhatIfAnalysis[];
+  comparison?: ModelComparison[];
+  
+  usage_summary: {
+    sessions: number;
+    traces: number;
+    spans: number;
+    raw_events: number;
+    raw_bytes: number;
+  };
+  
+  computed_at: string;
+}
+
+interface RuleBreakdown {
+  rule_id: string;
+  display_name: string;
+  
+  usage: {
+    raw_value: number;
+    unit: string;
+    aggregated_value: number;
+  };
+  
+  calculation: {
+    pricing_type: string;
+    applied_tiers?: AppliedTier[];
+    multiplier_calculation?: string;   // e.g., "150000 units × $0.01 / 1 = $1500.00"
+  };
+  
+  amount: number;
+}
+
+interface AppliedTier {
+  tier_index: number;
+  range: { from: number; to: number };
+  units_in_tier: number;
+  unit_price: number;
+  tier_amount: number;
+}
+
+interface WhatIfAnalysis {
+  scenario: string;                    // e.g., "2x current usage"
+  multiplier: number;
+  projected_total: number;
+  difference: number;
+  percentage_change: number;
+}
+
+interface ModelComparison {
+  model_id: string;
+  model_name: string;
+  total_amount: number;
+  difference_from_primary: number;
+  percentage_difference: number;
+}
+```
+
+---
+
+### 2.1 Run Simulation
+
+Execute a pricing simulation.
+
+**Endpoint:** `POST /pricing-models/simulate`
+
+**Request Body:**
+```json
+{
+  "model_id": "plan_ent_premium_001",
+  "usage_data": {
+    "aggregated": {
+      "sessions": 50000,
+      "traces": 200000,
+      "spans": 5000000,
+      "raw": {
+        "count": 1000000,
+        "payload_size_bytes_total": 5368709120,
+        "usage_total_tokens": 500000000
+      }
+    }
+  },
+  "simulation_options": {
+    "include_breakdown": true,
+    "include_what_if": true
+  }
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "data": {
+    "simulation_id": "sim_abc123",
+    "model_id": "plan_ent_premium_001",
+    "model_version": "1.2.0",
+    
+    "summary": {
+      "total_amount": 1450.00,
+      "currency": "USD",
+      "period": {
+        "start": "2024-03-01T00:00:00Z",
+        "end": "2024-03-31T23:59:59Z"
+      },
+      "subtotals": {
+        "rules_total": 950.00,
+        "platform_fees_total": 500.00,
+        "discounts_total": 0.00
+      }
+    },
+    
+    "breakdown": [
+      {
+        "rule_id": "rule_spans_001",
+        "display_name": "Distributed Tracing Spans",
+        "usage": {
+          "raw_value": 5000000,
+          "unit": "spans",
+          "aggregated_value": 5000000
+        },
+        "calculation": {
+          "pricing_type": "tiered",
+          "applied_tiers": [
+            {
+              "tier_index": 0,
+              "range": { "from": 0, "to": 1000000 },
+              "units_in_tier": 1000000,
+              "unit_price": 0.00,
+              "tier_amount": 0.00
+            },
+            {
+              "tier_index": 1,
+              "range": { "from": 1000001, "to": 5000000 },
+              "units_in_tier": 4000000,
+              "unit_price": 0.00005,
+              "tier_amount": 200.00
+            }
+          ]
+        },
+        "amount": 200.00
+      },
+      {
+        "rule_id": "rule_raw_001",
+        "display_name": "Raw Logs Ingestion",
+        "usage": {
+          "raw_value": 5368709120,
+          "unit": "bytes",
+          "aggregated_value": 5
+        },
+        "calculation": {
+          "pricing_type": "flat_multiplier",
+          "multiplier_calculation": "5 GB × $0.15 = $0.75"
+        },
+        "amount": 0.75
+      },
+      {
+        "rule_id": "rule_session_001",
+        "display_name": "User Sessions",
+        "usage": {
+          "raw_value": 50000,
+          "unit": "sessions",
+          "aggregated_value": 50000
+        },
+        "calculation": {
+          "pricing_type": "flat_multiplier",
+          "multiplier_calculation": "50000 sessions × $0.01 / 1 = $500.00"
+        },
+        "amount": 500.00
+      }
+    ],
+    
+    "what_if": [
+      {
+        "scenario": "50% of current usage",
+        "multiplier": 0.5,
+        "projected_total": 975.00,
+        "difference": -475.00,
+        "percentage_change": -32.76
+      },
+      {
+        "scenario": "2x current usage",
+        "multiplier": 2.0,
+        "projected_total": 2400.00,
+        "difference": 950.00,
+        "percentage_change": 65.52
+      },
+      {
+        "scenario": "5x current usage",
+        "multiplier": 5.0,
+        "projected_total": 5250.00,
+        "difference": 3800.00,
+        "percentage_change": 262.07
+      }
+    ],
+    
+    "usage_summary": {
+      "sessions": 50000,
+      "traces": 200000,
+      "spans": 5000000,
+      "raw_events": 1000000,
+      "raw_bytes": 5368709120
+    },
+    
+    "computed_at": "2024-03-01T10:00:00Z"
+  }
+}
+```
+
+---
+
+### 2.2 Simulate with Inline Model
+
+Test a pricing model without saving it first.
+
+**Endpoint:** `POST /pricing-models/simulate`
+
+**Request Body:**
+```json
+{
+  "pricing_model": {
+    "name": "Test Model",
+    "currency": "USD",
+    "rules": [
+      {
+        "display_name": "Spans",
+        "telemetry_source": "span",
+        "aggregation_method": "COUNT",
+        "pricing_type": "flat_multiplier",
+        "multiplier": 0.0001,
+        "per_unit_count": 1
+      }
+    ]
+  },
+  "usage_data": {
+    "aggregated": {
+      "spans": 1000000
+    }
+  }
+}
+```
+
+---
+
+### 2.3 Compare Models
+
+Compare pricing across multiple models.
+
+**Endpoint:** `POST /pricing-models/simulate/compare`
+
+**Request Body:**
+```json
+{
+  "model_ids": [
+    "plan_starter_001",
+    "plan_pro_001",
+    "plan_ent_premium_001"
+  ],
+  "usage_data": {
+    "aggregated": {
+      "sessions": 50000,
+      "spans": 5000000,
+      "raw": {
+        "payload_size_bytes_total": 5368709120
+      }
+    }
+  }
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "data": {
+    "comparison_id": "cmp_xyz789",
+    "usage_summary": {
+      "sessions": 50000,
+      "spans": 5000000,
+      "raw_bytes": 5368709120
+    },
+    "results": [
+      {
+        "model_id": "plan_starter_001",
+        "model_name": "Starter Plan",
+        "total_amount": 2500.00,
+        "currency": "USD",
+        "rank": 3,
+        "notes": ["No free tier"]
+      },
+      {
+        "model_id": "plan_pro_001",
+        "model_name": "Professional Plan",
+        "total_amount": 1800.00,
+        "currency": "USD",
+        "rank": 2,
+        "notes": ["Includes 1M free spans"]
+      },
+      {
+        "model_id": "plan_ent_premium_001",
+        "model_name": "Enterprise Usage-Based Plan",
+        "total_amount": 1450.00,
+        "currency": "USD",
+        "rank": 1,
+        "recommended": true,
+        "notes": ["Best value for this usage level", "Includes premium support"]
+      }
+    ],
+    "computed_at": "2024-03-01T10:00:00Z"
+  }
+}
+```
+
+---
+
+### 2.4 Batch Simulation
+
+Run simulations for multiple customers/periods.
+
+**Endpoint:** `POST /pricing-models/simulate/batch`
+
+**Request Body:**
+```json
+{
+  "model_id": "plan_ent_premium_001",
+  "simulations": [
+    {
+      "reference_id": "customer_001_jan",
+      "customer_id": "cust_001",
+      "time_range": {
+        "start": "2024-01-01T00:00:00Z",
+        "end": "2024-01-31T23:59:59Z"
+      }
+    },
+    {
+      "reference_id": "customer_001_feb",
+      "customer_id": "cust_001",
+      "time_range": {
+        "start": "2024-02-01T00:00:00Z",
+        "end": "2024-02-29T23:59:59Z"
+      }
+    },
+    {
+      "reference_id": "customer_002_jan",
+      "customer_id": "cust_002",
+      "time_range": {
+        "start": "2024-01-01T00:00:00Z",
+        "end": "2024-01-31T23:59:59Z"
+      }
+    }
+  ]
+}
+```
+
+**Response:** `202 Accepted` (for async processing)
+```json
+{
+  "data": {
+    "batch_id": "batch_abc123",
+    "status": "processing",
+    "total_simulations": 3,
+    "completed": 0,
+    "status_url": "/v1/pricing-models/simulate/batch/batch_abc123"
+  }
+}
+```
+
+---
+
+### 2.5 Get Batch Status
+
+**Endpoint:** `GET /pricing-models/simulate/batch/{batch_id}`
+
+**Response:** `200 OK`
+```json
+{
+  "data": {
+    "batch_id": "batch_abc123",
+    "status": "completed",
+    "total_simulations": 3,
+    "completed": 3,
+    "failed": 0,
+    "results": [
+      {
+        "reference_id": "customer_001_jan",
+        "status": "success",
+        "total_amount": 1450.00,
+        "currency": "USD"
+      },
+      {
+        "reference_id": "customer_001_feb",
+        "status": "success",
+        "total_amount": 1680.00,
+        "currency": "USD"
+      },
+      {
+        "reference_id": "customer_002_jan",
+        "status": "success",
+        "total_amount": 890.00,
+        "currency": "USD"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 2.6 Margin Analysis
+
+Analyze margins based on costs.
+
+**Endpoint:** `POST /pricing-models/simulate/margin`
+
+**Request Body:**
+```json
+{
+  "model_id": "plan_ent_premium_001",
+  "usage_data": {
+    "aggregated": {
+      "sessions": 50000,
+      "spans": 5000000,
+      "raw": {
+        "payload_size_bytes_total": 5368709120,
+        "usage_total_tokens": 500000000
+      }
+    }
+  },
+  "cost_inputs": {
+    "llm_costs": {
+      "total_tokens": 500000000,
+      "cost_per_1k_tokens": 0.002
+    },
+    "infrastructure_costs": {
+      "storage_gb": 5,
+      "cost_per_gb": 0.10,
+      "compute_hours": 100,
+      "cost_per_hour": 0.05
+    },
+    "fixed_costs": {
+      "support": 200.00,
+      "overhead": 50.00
+    }
+  }
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "data": {
+    "simulation_id": "sim_margin_001",
+    "model_id": "plan_ent_premium_001",
+    
+    "revenue": {
+      "total": 1450.00,
+      "currency": "USD"
+    },
+    
+    "costs": {
+      "llm_costs": 1000.00,
+      "infrastructure_costs": 5.50,
+      "fixed_costs": 250.00,
+      "total": 1255.50
+    },
+    
+    "margin": {
+      "gross_profit": 194.50,
+      "gross_margin_percent": 13.41,
+      "per_session": 0.00389,
+      "per_span": 0.0000389
+    },
+    
+    "break_even_analysis": {
+      "current_utilization": "profitable",
+      "break_even_sessions": 43150,
+      "break_even_spans": 4315000
+    },
+    
+    "recommendations": [
+      {
+        "type": "pricing_adjustment",
+        "message": "Consider increasing session pricing to improve margins",
+        "suggested_change": "Increase multiplier from 0.01 to 0.012",
+        "impact": "+$100/month revenue"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 3. Error Handling
+
+### Error Response Format
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid pricing model configuration",
+    "details": [
+      {
+        "field": "rules[0].tiers[2].upto",
+        "code": "INVALID_VALUE",
+        "message": "Final tier must have upto: 'unlimited'"
+      }
+    ],
+    "request_id": "req_abc123",
+    "documentation_url": "https://docs.example.com/errors/VALIDATION_ERROR"
+  }
+}
+```
+
+### Error Codes
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 400 | `VALIDATION_ERROR` | Invalid request body |
+| 400 | `INVALID_MODEL_ID` | Model ID format is invalid |
+| 400 | `INVALID_RULE_CONFIG` | Rule configuration is invalid |
+| 401 | `UNAUTHORIZED` | Missing or invalid API key |
+| 403 | `FORBIDDEN` | Insufficient permissions |
+| 404 | `MODEL_NOT_FOUND` | Pricing model does not exist |
+| 404 | `VERSION_NOT_FOUND` | Specified version does not exist |
+| 409 | `VERSION_CONFLICT` | Version already exists |
+| 409 | `MODEL_IN_USE` | Cannot delete model assigned to customers |
+| 422 | `SIMULATION_ERROR` | Unable to process simulation |
+| 429 | `RATE_LIMITED` | Too many requests |
+| 500 | `INTERNAL_ERROR` | Server error |
+
+---
+
+## 4. Webhooks
+
+Subscribe to pricing model events.
+
+### Available Events
+
+| Event | Description |
+|-------|-------------|
+| `pricing_model.created` | New model created |
+| `pricing_model.updated` | Model updated (new version) |
+| `pricing_model.activated` | Model status changed to active |
+| `pricing_model.archived` | Model archived |
+| `simulation.completed` | Batch simulation completed |
+
+### Webhook Payload
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "pricing_model.updated",
+  "created_at": "2024-03-01T10:00:00Z",
+  "data": {
+    "model_id": "plan_ent_premium_001",
+    "version": "1.3.0",
+    "previous_version": "1.2.0",
+    "changes": ["rules", "platform_fees"]
+  }
+}
+```
+
+---
+
+## 5. SDK Usage Examples
+
+### Python SDK
+
+```python
+from pricing_simulator import PricingClient
+
+client = PricingClient(api_key="your_api_key")
+
+# Create a pricing model
+model = client.pricing_models.create(
+    name="Enterprise Plan",
+    currency="USD",
+    rules=[
+        {
+            "display_name": "Spans",
+            "telemetry_source": "span",
+            "aggregation_method": "COUNT",
+            "pricing_type": "tiered",
+            "tiers": [
+                {"upto": 1000000, "unit_price": 0.00},
+                {"upto": 10000000, "unit_price": 0.00005},
+                {"upto": "unlimited", "unit_price": 0.00003}
+            ]
+        }
+    ],
+    platform_fees={"base_monthly_fee": 500.00}
+)
+
+# Run a simulation
+result = client.simulations.run(
+    model_id=model.model_id,
+    usage={
+        "spans": 5000000,
+        "sessions": 50000
+    },
+    include_breakdown=True
+)
+
+print(f"Total: ${result.summary.total_amount}")
+for rule in result.breakdown:
+    print(f"  {rule.display_name}: ${rule.amount}")
+```
+
+### TypeScript SDK
+
+```typescript
+import { PricingClient } from '@company/pricing-simulator';
+
+const client = new PricingClient({ apiKey: 'your_api_key' });
+
+// Create a pricing model
+const model = await client.pricingModels.create({
+  name: 'Enterprise Plan',
+  currency: 'USD',
+  rules: [
+    {
+      displayName: 'Spans',
+      telemetrySource: 'span',
+      aggregationMethod: 'COUNT',
+      pricingType: 'tiered',
+      tiers: [
+        { upto: 1000000, unitPrice: 0.00 },
+        { upto: 10000000, unitPrice: 0.00005 },
+        { upto: 'unlimited', unitPrice: 0.00003 }
+      ]
+    }
+  ],
+  platformFees: { baseMonthlyFee: 500.00 }
+});
+
+// Run a simulation
+const result = await client.simulations.run({
+  modelId: model.modelId,
+  usage: {
+    spans: 5000000,
+    sessions: 50000
+  },
+  includeBreakdown: true
+});
+
+console.log(`Total: $${result.summary.totalAmount}`);
+```
+
+---
+
+## 6. Rate Limits
+
+| Endpoint | Rate Limit |
+|----------|------------|
+| `GET /pricing-models` | 100/minute |
+| `GET /pricing-models/{id}` | 200/minute |
+| `POST /pricing-models` | 20/minute |
+| `PUT/PATCH /pricing-models/{id}` | 20/minute |
+| `POST /pricing-models/simulate` | 50/minute |
+| `POST /pricing-models/simulate/batch` | 10/minute |
+
+Rate limit headers are included in all responses:
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1709294400
+```
+
+---
+
+## 7. Pagination
+
+List endpoints use cursor-based pagination for consistent results:
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "has_more": true,
+    "next_cursor": "eyJpZCI6Imxhc3RfaWQiLCJ0cyI6MTcwOTI5NDQwMH0=",
+    "total_count": 150
+  }
+}
+```
+
+Use the `cursor` parameter to fetch the next page:
+```
+GET /v1/pricing-models?cursor=eyJpZCI6Imxhc3RfaWQiLCJ0cyI6MTcwOTI5NDQwMH0=
+```
