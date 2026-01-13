@@ -18,7 +18,8 @@
             "pages": [
               "index",
               "getting-started/quickstart",
-              "getting-started/create-account"
+              "getting-started/create-account",
+              "getting-started/self-hosting"
             ]
           },
           {

@@ -51,7 +51,7 @@ Add to your shell configuration (`~/.bashrc` or `~/.zshrc`):
 
 ```bash
 export OPENAI_API_KEY=sk-xxx
-export ADEN_API_URL=https://kube.acho.io
+export ADEN_API_URL=https://kube.acho.io # Use http://localhost:4000 if using self-hosting
 export ADEN_API_KEY=your-aden-api-key
 ```
 
@@ -59,13 +59,17 @@ Or create a `.env` file:
 
 ```bash
 OPENAI_API_KEY=sk-xxx
-ADEN_API_URL=https://kube.acho.io
+ADEN_API_URL=https://kube.acho.io # Use http://localhost:4000 if using self-hosting
 ADEN_API_KEY=your-aden-api-key
 ```
 
 <Info>
 Don't have an Aden API key yet? You can still use the SDK locally with the console emitter for testing.
 </Info>
+
+<Note>
+  If you are using self-hosting, use `http://localhost:4000` as the `ADEN_API_URL`.
+</Note>
 
 ## Requirements
 

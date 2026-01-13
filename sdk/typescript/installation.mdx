@@ -61,13 +61,17 @@ Create a `.env` file in your project root:
 
 ```bash
 OPENAI_API_KEY=sk-xxx
-ADEN_API_URL=https://kube.acho.io
+ADEN_API_URL=https://kube.acho.io # Use http://localhost:4000 if using self-hosting
 ADEN_API_KEY=your-aden-api-key
 ```
 
 <Info>
 Don't have an Aden API key yet? You can still use the SDK locally with the console emitter for testing.
 </Info>
+
+<Note>
+  If you are using self-hosting, use `http://localhost:4000` as the `ADEN_API_URL`.
+</Note>
 
 ## Requirements
 
