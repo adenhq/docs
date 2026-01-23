@@ -33,14 +33,47 @@ At this stage, you have expressed direction but haven't defined what success mea
 
 ### 2. Define Criteria
 
-Criteria translate intent into **what winning would look like**. They set expectations but still aren't outcomes.
+Criteria translate intent into **what winning would look like**. They set expectations but still aren't outcomes. In our framework, there are two types of criteria:
 
-| Criteria Type | Example |
-|---------------|---------|
-| **Success Metric** | Resolution rate of 60% or higher |
-| **Quality Constraint** | Hallucination rate below 5% |
-| **Cost Constraint** | Less than $0.20 per ticket |
-| **Time Constraint** | Response within 30 seconds |
+- **Success Criteria:** Measurable conditions that define success. 
+- **Constraints:** Conditions that define failure. 
+
+#### Success Criteria
+
+Defined in `goal.py`, each `SuccessCriterion` represents a measurable condition:
+
+| Field | Purpose |
+|-------|---------|
+| `metric` | How to measure: `output_contains`, `output_equals`, `llm_judge`, `custom` |
+| `target` | The expected value or condition |
+| `weight` | Relative importance (0-1) |
+
+```python
+SuccessCriterion(
+    id="sc-kb-grounded",
+    description="Answers are grounded in knowledge base content",
+    metric="llm_judge",
+    target="answers reference KB sources",
+    weight=0.3,
+)
+```
+
+#### Constraints
+
+Also in `goal.py`, `Constraint` defines boundaries the agent must respect:
+
+| Constraint Type | Behavior |
+|-----------------|----------|
+| **Hard** | Violation = immediate failure |
+| **Soft** | Discouraged but allowed |
+
+| Category | Example |
+|----------|---------|
+| `time` | Response within 30 seconds |
+| `cost` | Less than $0.20 per request |
+| `safety` | No PII in responses |
+| `scope` | Only answer questions about billing |
+| `quality` | Hallucination rate below 5% |
 
 Criteria are expectations - measurable thresholds that define success and failure.
 
@@ -79,6 +112,55 @@ These are **observed outcomes in a controlled environment**.
 
 **Why they're limited:** They don't yet tell you whether users trust the agent, whether it reduces real workload, or whether edge cases in the wild dominate behavior.
 
+## Outcome Structure
+
+Defined in `decision.py`, the `Outcome` class captures everything about an execution result:
+
+```python
+class Outcome(BaseModel):
+    success: bool           # Did it succeed?
+    result: Any             # Actual output
+    error: str | None       # Error if failed
+    state_changes: dict     # Side effects
+    tokens_used: int        # LLM tokens consumed
+    latency_ms: int         # Execution time
+    summary: str            # Human-readable narrative
+```
+
+The framework tracks **what should happen** (criteria/constraints) and **what actually happened** (outcomes), then evaluates the gap.
+
+
+## The Feedback Loop
+
+Outcome-driven development depends on closing the loop:
+
+```mermaid
+flowchart LR
+    subgraph DEFINE["Define"]
+        G["Goal"] --> C["Criteria"]
+    end
+
+    subgraph MEASURE["Measure"]
+        C --> T["Tests"]
+        T --> O["Outcomes"]
+    end
+
+    subgraph ADAPT["Adapt"]
+        O --> U["Update"]
+    end
+
+    U -.->|"Refine system"| T
+    U -.->|"Adjust criteria"| C
+    U -.->|"Revisit goal (Only with Developer Intervention)"| G
+```
+
+Outcomes inform updates at every level:
+
+- **Update the system** - Fix bugs, improve prompts, add guardrails
+- **Adjust criteria** - Thresholds may be too strict or too lenient
+- **Revisit the goal** - Sometimes the original intent was not accurate or not up to date. Developer need to revisit and update the goal accoding to the outcomes. However, the framework should not be able to change the original goal to ensure the goal is consistent and respected.
+
+
 ## The Outcome Taxonomy
 
 All results are outcomes - they differ by **context and validity**, not by kind.
@@ -116,36 +198,6 @@ Full production. Business metrics. User trust.
 - Slowest feedback loop
 - Highest cost to observe
 
-## The Feedback Loop
-
-Outcome-driven development depends on closing the loop:
-
-```mermaid
-flowchart LR
-    subgraph DEFINE["Define"]
-        G["Goal"] --> C["Criteria"]
-    end
-
-    subgraph MEASURE["Measure"]
-        C --> T["Tests"]
-        T --> O["Outcomes"]
-    end
-
-    subgraph ADAPT["Adapt"]
-        O --> U["Update"]
-    end
-
-    U -.->|"Refine system"| T
-    U -.->|"Adjust criteria"| C
-    U -.->|"Revisit goal (Only with Developer Intervention)"| G
-```
-
-Outcomes inform updates at every level:
-
-- **Update the system** - Fix bugs, improve prompts, add guardrails
-- **Adjust criteria** - Thresholds may be too strict or too lenient
-- **Revisit the goal** - Sometimes the original intent was not accurate or not up to date. Developer need to revisit and update the goal accoding to the outcomes. However, the framework should not be able to change the original goal to ensure the goal is consistent and respected.
-
 ## Example: Support Agent Development
 
 ### Phase 1: Define
@@ -155,24 +207,70 @@ Outcomes inform updates at every level:
 Build an agent that handles Tier-1 support tickets reliably.
 ```
 
-**Criteria:**
-- Resolution rate: 60%+
-- Hallucination rate: less than 5%
-- Cost per ticket: less than $0.20
-- Escalation accuracy: 90%+
+**Success Criteria:**
+```python
+[
+    SuccessCriterion(
+        id="sc-resolution",
+        description="Resolves tickets without escalation",
+        metric="custom",
+        target="resolution_rate >= 0.6",
+        weight=0.4,
+    ),
+    SuccessCriterion(
+        id="sc-accuracy",
+        description="Responses are factually correct",
+        metric="llm_judge",
+        target="no hallucinations or misinformation",
+        weight=0.3,
+    ),
+    SuccessCriterion(
+        id="sc-escalation",
+        description="Escalates appropriately when needed",
+        metric="custom",
+        target="escalation_accuracy >= 0.9",
+        weight=0.3,
+    ),
+]
+```
+
+**Constraints:**
+```python
+[
+    Constraint(type="hard", category="cost", value="cost_per_ticket < 0.20"),
+    Constraint(type="hard", category="safety", value="no_pii_in_responses"),
+    Constraint(type="soft", category="time", value="response_time < 30s"),
+]
+```
 
 ### Phase 2: Test Outcomes
 
-Run automated tests against synthetic tickets:
+Run automated tests against synthetic tickets. Each test produces an `Outcome`:
 
-| Metric | Result | Status |
-|--------|--------|--------|
-| Resolution rate | 52% | Below target |
-| Hallucination rate | 3% | Passing |
-| Cost per ticket | $0.18 | Passing |
-| Escalation accuracy | 87% | Below target |
+```python
+Outcome(
+    success=True,
+    result={"answer": "To reset your password, go to Settings > Security..."},
+    error=None,
+    state_changes={"ticket_status": "resolved"},
+    tokens_used=847,
+    latency_ms=1230,
+    summary="Resolved password reset question correctly"
+)
+```
 
-**Insight:** Resolution and escalation need work. Adjust prompts, add examples.
+**Aggregate results across test suite:**
+
+| Criterion | Result | Status | Judgment |
+|-----------|--------|--------|----------|
+| Resolution rate | 52% | Below 60% target | `REPLAN` |
+| Accuracy (llm_judge) | 97% | Passing | `ACCEPT` |
+| Cost per ticket | $0.18 | Below $0.20 hard constraint | `ACCEPT` |
+| Escalation accuracy | 87% | Below 90% target | `RETRY` |
+
+**Weighted score:** 78% (below 90% threshold)
+
+**Insight:** Resolution and escalation need work. The `HybridJudge` recommends `REPLAN` - adjust prompts, add examples.
 
 ### Phase 3: Operational Outcomes
 
@@ -199,17 +297,17 @@ Full production deployment:
 ## Best Practices
 
 <CardGroup cols={2}>
-  <Card title="Distinguish Outcome Types" icon="layer-group">
-    Know whether you're looking at test, operational, or real-world outcomes
+  <Card title="Weight Criteria Carefully" icon="balance-scale">
+    Higher weights on critical criteria ensure the 90% threshold reflects true success
   </Card>
-  <Card title="Close the Loop" icon="arrows-rotate">
-    Every outcome should inform an update - to system, criteria, or goal
+  <Card title="Use Hard Constraints for Safety" icon="shield">
+    Cost limits, PII protection, and scope boundaries should be hard constraints
   </Card>
-  <Card title="Progress Through Stages" icon="stairs">
-    Don't skip from test outcomes to production - operational outcomes catch issues
+  <Card title="Let llm_judge Handle Nuance" icon="brain">
+    Use `llm_judge` metric for quality criteria that can't be measured programmatically
   </Card>
-  <Card title="Measure What Matters" icon="bullseye">
-    Business outcomes matter most, but test outcomes give fastest feedback
+  <Card title="Trust the Judgment Actions" icon="gavel">
+    ACCEPT, RETRY, REPLAN, ESCALATE - let the HybridJudge guide the response
   </Card>
 </CardGroup>
 
