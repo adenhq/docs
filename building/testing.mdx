@@ -1,0 +1,308 @@
+---
+title: "Testing Agents"
+description: "Write and run tests to validate agent behavior"
+---
+
+## Overview
+
+Aden provides built-in testing capabilities to validate your agents before deployment. Tests verify:
+
+- **Goal completion** - Does the agent achieve its objectives?
+- **Edge cases** - How does the agent handle unusual inputs?
+- **Error handling** - Does the agent recover from failures gracefully?
+- **Human-in-the-loop** - Do intervention points work correctly?
+
+## Quick Start
+
+Use the Claude Code testing skill:
+
+```bash
+claude> /testing-agent
+```
+
+Or run tests manually:
+
+```bash
+PYTHONPATH=core:exports pytest exports/your_agent/tests/
+```
+
+## Test Structure
+
+Tests live alongside your agent:
+
+```
+exports/your_agent/
+├── agent.json
+├── tools.py
+└── tests/
+    ├── __init__.py
+    ├── test_agent.py
+    ├── test_nodes.py
+    └── fixtures/
+        ├── sample_inputs.json
+        └── expected_outputs.json
+```
+
+## Writing Tests
+
+### Basic Agent Test
+
+```python
+import pytest
+from framework.testing import AgentTestCase, MockLLM
+
+class TestFAQAgent(AgentTestCase):
+    agent_path = "exports/faq_agent"
+
+    def test_answers_common_question(self):
+        """Agent should answer common FAQ correctly."""
+        result = self.run_agent({
+            "question": "What is your refund policy?"
+        })
+
+        assert result.success
+        assert "refund" in result.output["answer"].lower()
+        assert result.output["confidence"] > 0.7
+
+    def test_escalates_complex_question(self):
+        """Agent should escalate questions it can't answer."""
+        result = self.run_agent({
+            "question": "Can you explain quantum entanglement?"
+        })
+
+        assert result.escalated
+        assert result.escalation_node == "human_review"
+```
+
+### Testing with Mock LLM
+
+Control LLM responses for deterministic tests:
+
+```python
+def test_with_mock_llm(self):
+    mock_llm = MockLLM({
+        "classify": {"category": "billing", "confidence": 0.95},
+        "generate_response": {"answer": "Your bill is due on the 15th."}
+    })
+
+    result = self.run_agent(
+        {"question": "When is my bill due?"},
+        llm=mock_llm
+    )
+
+    assert result.output["answer"] == "Your bill is due on the 15th."
+```
+
+### Testing Edge Paths
+
+Verify specific edge conditions:
+
+```python
+def test_high_risk_triggers_review(self):
+    """High risk score should trigger human review."""
+    mock_llm = MockLLM({
+        "analyze_risk": {"risk_score": 0.9, "factors": ["unusual_amount"]}
+    })
+
+    result = self.run_agent(
+        {"transaction": {"amount": 50000}},
+        llm=mock_llm
+    )
+
+    # Verify the path taken
+    assert "human_review" in result.nodes_executed
+    assert result.paused_at == "human_review"
+```
+
+### Testing Human-in-the-Loop
+
+Simulate human responses:
+
+```python
+def test_approval_flow(self):
+    """Test the approval workflow."""
+    result = self.run_agent(
+        {"refund_amount": 500},
+        human_responses={
+            "manager_approval": {"approved": True, "notes": "Looks good"}
+        }
+    )
+
+    assert result.success
+    assert result.output["status"] == "refunded"
+
+def test_rejection_flow(self):
+    """Test rejection handling."""
+    result = self.run_agent(
+        {"refund_amount": 500},
+        human_responses={
+            "manager_approval": {"approved": False, "reason": "Suspicious activity"}
+        }
+    )
+
+    assert not result.success
+    assert result.output["status"] == "rejected"
+```
+
+### Testing Timeouts
+
+Verify timeout behavior:
+
+```python
+def test_timeout_auto_rejects(self):
+    """Timeout should auto-reject when configured."""
+    result = self.run_agent(
+        {"refund_amount": 500},
+        human_responses={
+            "manager_approval": "timeout"
+        }
+    )
+
+    assert result.output["status"] == "rejected"
+    assert result.output["reason"] == "approval_timeout"
+```
+
+## Test Fixtures
+
+### Input Fixtures
+
+```json
+// tests/fixtures/sample_inputs.json
+{
+  "common_questions": [
+    {"question": "What is your refund policy?", "expected_category": "billing"},
+    {"question": "How do I reset my password?", "expected_category": "account"},
+    {"question": "What are your business hours?", "expected_category": "general"}
+  ],
+  "edge_cases": [
+    {"question": "", "should_fail": true},
+    {"question": "a".repeat(10000), "should_truncate": true}
+  ]
+}
+```
+
+### Parametrized Tests
+
+```python
+import json
+
+def load_fixtures():
+    with open("tests/fixtures/sample_inputs.json") as f:
+        return json.load(f)
+
+@pytest.mark.parametrize("case", load_fixtures()["common_questions"])
+def test_common_questions(self, case):
+    result = self.run_agent({"question": case["question"]})
+    assert result.output["category"] == case["expected_category"]
+```
+
+## Goal-Based Testing
+
+Test against the agent's defined goals:
+
+```python
+def test_meets_success_criteria(self):
+    """Agent should meet its 80% accuracy goal."""
+    test_cases = load_fixtures()["test_set"]
+
+    correct = 0
+    for case in test_cases:
+        result = self.run_agent({"question": case["question"]})
+        if result.output["answer"] == case["expected_answer"]:
+            correct += 1
+
+    accuracy = correct / len(test_cases)
+    assert accuracy >= 0.8, f"Accuracy {accuracy:.1%} below 80% goal"
+```
+
+## Running Tests
+
+### All Tests
+
+```bash
+PYTHONPATH=core:exports pytest exports/your_agent/tests/ -v
+```
+
+### Specific Test
+
+```bash
+PYTHONPATH=core:exports pytest exports/your_agent/tests/test_agent.py::TestFAQAgent::test_answers_common_question -v
+```
+
+### With Coverage
+
+```bash
+PYTHONPATH=core:exports pytest exports/your_agent/tests/ --cov=exports/your_agent --cov-report=html
+```
+
+## Test Configuration
+
+Configure test behavior in `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+testpaths = ["exports/*/tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["exports"]
+omit = ["*/tests/*"]
+```
+
+## CI Integration
+
+Example GitHub Actions workflow:
+
+```yaml
+name: Test Agents
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: ./scripts/setup-python.sh
+
+      - name: Run tests
+        run: |
+          PYTHONPATH=core:exports pytest exports/*/tests/ -v --tb=short
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Mock External Calls" icon="plug">
+    Use mocks for LLMs and APIs to ensure deterministic tests
+  </Card>
+  <Card title="Test Edge Cases" icon="triangle-exclamation">
+    Include empty inputs, long inputs, and malformed data
+  </Card>
+  <Card title="Test All Paths" icon="code-branch">
+    Verify each edge in your graph is exercised by tests
+  </Card>
+  <Card title="Test HITL Flows" icon="user">
+    Simulate approval, rejection, and timeout scenarios
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Build Your First Agent" icon="hammer" href="/building/first-agent">
+    Start building if you haven't already
+  </Card>
+  <Card title="Node Types" icon="cube" href="/building/nodes">
+    Review available node types
+  </Card>
+</CardGroup>

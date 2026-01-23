@@ -11,17 +11,49 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "SDKs",
+        "tab": "Getting Started",
         "groups": [
           {
-            "group": "Getting Started",
+            "group": "Overview",
             "pages": [
               "index",
+              "concepts/overview",
               "getting-started/quickstart",
-              "getting-started/create-account",
               "getting-started/self-hosting"
             ]
           },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/outcome-driven-development",
+              "concepts/agent-architecture"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Building Agents",
+        "groups": [
+          {
+            "group": "Agent Development",
+            "pages": [
+              "building/first-agent",
+              "building/nodes",
+              "building/edges",
+              "building/human-in-the-loop"
+            ]
+          },
+          {
+            "group": "Testing & Quality",
+            "pages": [
+              "building/testing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "SDKs",
+        "groups": [
           {
             "group": "Use Cases",
             "pages": [
@@ -60,10 +92,10 @@
         ]
       },
       {
-        "tab": "MCP Server",
+        "tab": "Tools & Integrations",
         "groups": [
           {
-            "group": "Overview",
+            "group": "MCP Server",
             "pages": [
               "mcp-server/introduction",
               "mcp-server/installation",
@@ -71,7 +103,7 @@
             ]
           },
           {
-            "group": "Tools Reference",
+            "group": "Financial Tools",
             "pages": [
               "mcp-server/tools/overview",
               "mcp-server/tools/reports",

@@ -1,0 +1,250 @@
+---
+title: "Node Types"
+description: "LLM, Router, Function, and Human nodes for building agent graphs"
+---
+
+## Overview
+
+Nodes are the building blocks of Aden agents. Each node type serves a specific purpose in the agent graph.
+
+| Node Type | Purpose | When to Use |
+|-----------|---------|-------------|
+| **LLM** | Language model inference | Text generation, classification, extraction |
+| **Router** | Control flow decisions | Branching logic, conditional paths |
+| **Function** | Custom code execution | API calls, data transformation, business logic |
+| **Human** | Human intervention | Approvals, complex decisions, quality checks |
+
+## LLM Node
+
+Executes a language model call with structured inputs and outputs.
+
+### Configuration
+
+```json
+{
+  "id": "analyze_sentiment",
+  "type": "llm",
+  "model": "claude-sonnet-4-5-20250929",
+  "prompt": "Analyze the sentiment of this text: {{text}}",
+  "system": "You are a sentiment analysis expert.",
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "sentiment": {"type": "string", "enum": ["positive", "negative", "neutral"]},
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+    },
+    "required": ["sentiment", "confidence"]
+  },
+  "temperature": 0.3,
+  "max_tokens": 500
+}
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `model` | string | Yes | LLM model identifier |
+| `prompt` | string | Yes | Prompt template with `{{variable}}` placeholders |
+| `system` | string | No | System message for the LLM |
+| `output_schema` | object | No | JSON schema for structured output |
+| `temperature` | number | No | Sampling temperature (0-2) |
+| `max_tokens` | number | No | Maximum tokens to generate |
+| `tools` | array | No | Tools the LLM can call |
+
+### Tool Calling
+
+LLM nodes can call tools/functions:
+
+```json
+{
+  "id": "research_agent",
+  "type": "llm",
+  "model": "claude-sonnet-4-5-20250929",
+  "prompt": "Research this topic: {{topic}}",
+  "tools": [
+    {"name": "web_search", "description": "Search the web"},
+    {"name": "read_file", "description": "Read a file from disk"}
+  ]
+}
+```
+
+## Router Node
+
+Routes execution flow based on conditions or LLM decisions.
+
+### Conditional Routing
+
+Route based on output values from previous nodes:
+
+```json
+{
+  "id": "priority_router",
+  "type": "router",
+  "conditions": [
+    {"path": "urgent_handler", "when": "priority == 'high'"},
+    {"path": "normal_handler", "when": "priority == 'medium'"},
+    {"path": "low_priority_queue", "when": "priority == 'low'"},
+    {"path": "default_handler", "default": true}
+  ]
+}
+```
+
+### LLM-Decided Routing
+
+Let the LLM choose the path:
+
+```json
+{
+  "id": "intent_router",
+  "type": "router",
+  "strategy": "llm",
+  "model": "claude-haiku-4-5-20251001",
+  "prompt": "Which handler should process this request? {{request}}",
+  "paths": [
+    {"name": "billing", "description": "Billing and payment questions"},
+    {"name": "technical", "description": "Technical support issues"},
+    {"name": "sales", "description": "Sales and pricing inquiries"}
+  ]
+}
+```
+
+### Weighted Routing
+
+Probabilistic routing for A/B testing:
+
+```json
+{
+  "id": "ab_router",
+  "type": "router",
+  "strategy": "weighted",
+  "weights": [
+    {"path": "variant_a", "weight": 0.8},
+    {"path": "variant_b", "weight": 0.2}
+  ]
+}
+```
+
+## Function Node
+
+Executes custom Python code.
+
+### Basic Function
+
+```json
+{
+  "id": "send_email",
+  "type": "function",
+  "handler": "tools.email.send",
+  "inputs": ["recipient", "subject", "body"],
+  "timeout": "30s"
+}
+```
+
+### Implementation
+
+```python
+# tools/email.py
+async def send(ctx, recipient: str, subject: str, body: str):
+    """Send an email via the configured SMTP server."""
+    smtp = ctx.tools.get("smtp_client")
+    result = await smtp.send(
+        to=recipient,
+        subject=subject,
+        body=body
+    )
+    return {"sent": True, "message_id": result.id}
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `handler` | string | Yes | Python function path |
+| `inputs` | array | No | Required input fields |
+| `timeout` | string | No | Execution timeout |
+| `retry` | object | No | Retry configuration |
+
+## Human Node
+
+Pauses execution for human input.
+
+### Basic Configuration
+
+```json
+{
+  "id": "manager_approval",
+  "type": "human",
+  "prompt": "Approve refund of ${{amount}} for {{customer}}?",
+  "options": ["approve", "reject", "escalate"],
+  "timeout": "24h",
+  "escalation": "auto_reject"
+}
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | string | Yes | Question/instructions for the human |
+| `options` | array | No | Predefined response options |
+| `timeout` | string | No | Time limit for human response |
+| `escalation` | string | No | Action on timeout: `auto_approve`, `auto_reject`, `escalate` |
+| `assignee` | string | No | Specific user/role to notify |
+
+See [Human-in-the-Loop](/building/human-in-the-loop) for advanced patterns.
+
+## Node Context
+
+All nodes receive a context object:
+
+```python
+class NodeContext:
+    # Input from previous node
+    input: dict
+
+    # Shared memory store
+    memory: MemoryStore
+
+    # LLM client
+    llm: LLMClient
+
+    # Tool registry
+    tools: ToolRegistry
+
+    # Run metadata
+    metadata: RunMetadata
+```
+
+### Using Context in Functions
+
+```python
+async def my_function(ctx):
+    # Read from memory
+    user_data = await ctx.memory.get("user_profile")
+
+    # Call LLM
+    response = await ctx.llm.complete(
+        model="claude-haiku-4-5-20251001",
+        prompt="Summarize: " + ctx.input["text"]
+    )
+
+    # Use tools
+    result = await ctx.tools.call("web_search", query="...")
+
+    # Write to memory
+    await ctx.memory.set("summary", response.text)
+
+    return {"summary": response.text}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Edge Configuration" icon="arrow-right" href="/building/edges">
+    Connect nodes with success, failure, and conditional edges
+  </Card>
+  <Card title="Human-in-the-Loop" icon="user" href="/building/human-in-the-loop">
+    Configure human intervention patterns
+  </Card>
+</CardGroup>

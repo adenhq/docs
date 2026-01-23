@@ -1,0 +1,184 @@
+---
+title: "Build Your First Agent"
+description: "Create your first goal-driven AI agent in minutes"
+---
+
+## Prerequisites
+
+Before building your first agent, ensure you have:
+
+- [Python 3.11+](https://www.python.org/downloads/) installed
+- [Claude Code](https://claude.com/claude-code) or another coding assistant
+- An LLM API key (OpenAI, Anthropic, or Google)
+
+## Quick Start
+
+### 1. Clone and Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/adenhq/hive.git
+cd hive
+
+# Run Python environment setup
+./scripts/setup-python.sh
+```
+
+This installs:
+- **framework** - Core agent runtime and graph executor
+- **aden_tools** - MCP tools for agent capabilities
+- All required dependencies
+
+### 2. Install Claude Code Skills
+
+```bash
+# One-time installation of building skills
+./quickstart.sh
+```
+
+### 3. Build Your Agent
+
+Launch Claude Code and use the building skill:
+
+```bash
+claude> /building-agents
+```
+
+The Coding Agent will guide you through:
+
+1. **Defining your goal** - What should the agent accomplish?
+2. **Setting success criteria** - How do you measure success?
+3. **Adding nodes** - LLM, Router, Function, or Human nodes
+4. **Connecting edges** - Define the execution flow
+5. **Testing** - Validate the agent behavior
+
+## Example: Building a FAQ Agent
+
+Let's build a simple agent that answers frequently asked questions.
+
+### Define the Goal
+
+```
+Goal: Answer customer FAQs about our product
+Success: Correctly answer 90% of common questions
+Constraints: Escalate to human if confidence < 0.7
+```
+
+### Generated Agent Structure
+
+```
+exports/faq_agent/
+├── __init__.py
+├── agent.json          # Agent graph specification
+├── tools.py            # Custom tool implementations
+├── prompts/
+│   └── answer.txt      # Prompt templates
+└── tests/
+    └── test_agent.py   # Test cases
+```
+
+### agent.json
+
+```json
+{
+  "name": "faq-agent",
+  "version": "1.0.0",
+  "goal": "Answer customer FAQs accurately",
+  "nodes": [
+    {
+      "id": "classify",
+      "type": "llm",
+      "model": "claude-sonnet-4-5-20250929",
+      "prompt": "Classify this question into a category: {{question}}"
+    },
+    {
+      "id": "answer",
+      "type": "llm",
+      "model": "claude-sonnet-4-5-20250929",
+      "prompt": "Answer this FAQ: {{question}}\nCategory: {{category}}"
+    },
+    {
+      "id": "confidence_check",
+      "type": "router",
+      "conditions": [
+        {"path": "respond", "when": "confidence >= 0.7"},
+        {"path": "escalate", "when": "confidence < 0.7"}
+      ]
+    },
+    {
+      "id": "escalate",
+      "type": "human",
+      "prompt": "Please answer: {{question}}",
+      "timeout": "1h"
+    }
+  ],
+  "edges": [
+    {"from": "classify", "to": "answer", "type": "on_success"},
+    {"from": "answer", "to": "confidence_check", "type": "on_success"},
+    {"from": "confidence_check", "to": "respond", "when": "confidence >= 0.7"},
+    {"from": "confidence_check", "to": "escalate", "when": "confidence < 0.7"}
+  ]
+}
+```
+
+### 4. Test Your Agent
+
+```bash
+claude> /testing-agent
+```
+
+Or run manually:
+
+```bash
+PYTHONPATH=core:exports python -m faq_agent run --input '{"question": "What is your refund policy?"}'
+```
+
+### 5. Run Your Agent
+
+```bash
+PYTHONPATH=core:exports python -m faq_agent run --input '{
+  "question": "How do I reset my password?"
+}'
+```
+
+**Output:**
+
+```json
+{
+  "answer": "To reset your password, click 'Forgot Password' on the login page...",
+  "confidence": 0.95,
+  "category": "account_management"
+}
+```
+
+## Project Structure
+
+When you build agents with Aden, they're exported to the `exports/` directory:
+
+```
+hive/
+├── core/               # Framework runtime
+├── tools/              # MCP tools package
+├── exports/            # Your agents live here
+│   ├── faq_agent/
+│   ├── support_agent/
+│   └── sales_agent/
+└── .claude/            # Claude Code skills
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Node Types" icon="cube" href="/building/nodes">
+    Learn about LLM, Router, Function, and Human nodes
+  </Card>
+  <Card title="Edge Configuration" icon="arrow-right" href="/building/edges">
+    Configure success, failure, and conditional edges
+  </Card>
+  <Card title="Human-in-the-Loop" icon="user" href="/building/human-in-the-loop">
+    Add human intervention points
+  </Card>
+  <Card title="Testing Agents" icon="vial" href="/building/testing">
+    Write and run agent tests
+  </Card>
+</CardGroup>
