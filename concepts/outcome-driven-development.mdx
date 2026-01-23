@@ -137,14 +137,14 @@ flowchart LR
 
     U -.->|"Refine system"| T
     U -.->|"Adjust criteria"| C
-    U -.->|"Revisit goal"| G
+    U -.->|"Revisit goal (Only with Developer Intervention)"| G
 ```
 
 Outcomes inform updates at every level:
 
 - **Update the system** - Fix bugs, improve prompts, add guardrails
 - **Adjust criteria** - Thresholds may be too strict or too lenient
-- **Revisit the goal** - Sometimes the original intent was wrong
+- **Revisit the goal** - Sometimes the original intent was not accurate or not up to date. Developer need to revisit and update the goal accoding to the outcomes. However, the framework should not be able to change the original goal to ensure the goal is consistent and respected.
 
 ## Example: Support Agent Development
 
