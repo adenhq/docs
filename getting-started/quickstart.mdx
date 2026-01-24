@@ -1,313 +1,142 @@
 ---
 title: "Quickstart"
-description: "Instrument your first LLM call in under 5 minutes"
+description: "Set up your agent development environment and run your first agent"
 ---
 
-By the end of this guide, you'll see every LLM call automatically tracked with latency, tokens, and cost.
+By the end of this guide, you'll have the Aden Agent Framework installed and run your first goal-driven agent.
 
 ## Prerequisites
 
 <CardGroup cols={2}>
-  <Card title="Runtime" icon="code">
-    Node.js 18+ or Python 3.9+
+  <Card title="Python" icon="python">
+    Python 3.11 or higher (3.11, 3.12, or 3.13)
   </Card>
   <Card title="LLM Provider" icon="key">
-    API key for OpenAI, Anthropic, or Google
+    API key for Anthropic (recommended) or OpenAI
   </Card>
 </CardGroup>
 
-## Step 1: Install the SDK
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```bash
-    npm install aden-ts dotenv openai
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```bash
-    pip install aden-py python-dotenv openai
-    ```
-  </Tab>
-</Tabs>
-
-## Step 2: Set Up Environment
-
-Create a `.env` file in your project root:
+## Step 1: Clone the Repository
 
 ```bash
-OPENAI_API_KEY=sk-xxx
-ADEN_API_URL=https://kube.acho.io
-ADEN_API_KEY=your-aden-api-key
+git clone https://github.com/adenhq/hive
+cd hive
+```
+
+## Step 2: Run the Setup Script
+
+The automated setup script handles all dependencies:
+
+```bash
+./scripts/setup-python.sh
+```
+
+This will:
+- Check your Python version
+- Install the core framework package (`framework`)
+- Install the tools package (`aden_tools`)
+- Fix package compatibility issues
+- Verify all installations
+
+<Accordion title="Manual Setup (Alternative)">
+If you prefer to set up manually or the script fails:
+
+**Install Core Framework:**
+```bash
+cd core && pip install -e .
+```
+
+**Install Tools Package:**
+```bash
+cd tools && pip install -e .
+```
+
+**Upgrade OpenAI Package:**
+```bash
+pip install --upgrade "openai>=1.0.0"
+```
+
+**Verify Installation:**
+```bash
+python -c "import framework; print('✓ framework OK')"
+python -c "import aden_tools; print('✓ aden_tools OK')"
+python -c "import litellm; print('✓ litellm OK')"
+```
+</Accordion>
+
+## Step 3: Set Up Environment
+
+Create a `.env` file or export your API key:
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
 <Info>
-Don't have an Aden API key yet? You can still follow along using the console emitter for local testing.
+For running agents with real LLMs, you'll need an API key from Anthropic or OpenAI. You can also use `--mock` mode for testing without API calls.
 </Info>
 
-## Step 3: Instrument Your Application
+## Step 4: Run Your First Agent
 
-Add instrumentation **before** creating any LLM clients. This wraps the SDK to capture metrics automatically.
+All agent commands must be run from the project root with `PYTHONPATH` set:
 
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    import "dotenv/config";
-    import OpenAI from "openai";
-    import { instrument, createConsoleEmitter } from "aden-ts";
+```bash
+# Validate agent structure
+PYTHONPATH=core:exports python -m support_ticket_agent validate
 
-    // Instrument at startup - must come before creating clients
-    await instrument({
-      apiKey: process.env.ADEN_API_KEY,
-      serverUrl: process.env.ADEN_API_URL,
-      emitMetric: createConsoleEmitter({ pretty: true }),
-      onAlert: (alert) => console.log(`[Aden ${alert.level}] ${alert.message}`),
-      sdks: { OpenAI },
-    });
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    import os
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    from aden import instrument, MeterOptions, create_console_emitter
-
-    # Instrument at startup - must come before creating clients
-    instrument(MeterOptions(
-        api_key=os.environ.get("ADEN_API_KEY"),
-        server_url=os.environ.get("ADEN_API_URL"),
-        emit_metric=create_console_emitter(pretty=True),
-        on_alert=lambda alert: print(f"[Aden {alert.level}] {alert.message}"),
-    ))
-    ```
-  </Tab>
-</Tabs>
-
-## Step 4: Make Your First Call
-
-Use your LLM SDK exactly as you normally would. Aden captures metrics transparently.
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    const openai = new OpenAI();
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: "What is 2+2?" }],
-    });
-
-    console.log(response.choices[0].message.content);
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    from openai import OpenAI
-
-    client = OpenAI()
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": "What is 2+2?"}],
-    )
-
-    print(response.choices[0].message.content)
-    ```
-  </Tab>
-</Tabs>
-
-## Step 5: Handle Budget Errors
-
-When cost controls are active, requests may be blocked if budget is exhausted. Handle this gracefully:
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    import { RequestCancelledError } from "aden-ts";
-
-    async function runAgent(userInput: string): Promise<string> {
-      try {
-        const openai = new OpenAI();
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [{ role: "user", content: userInput }],
-        });
-        return response.choices[0]?.message?.content ?? "";
-      } catch (e) {
-        if (e instanceof RequestCancelledError) {
-          return `Sorry, your budget has been exhausted. ${e.message}`;
-        }
-        throw e;
-      }
-    }
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    from aden import RequestCancelledError
-
-    def run_agent(user_input: str) -> str:
-        try:
-            client = OpenAI()
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": user_input}],
-            )
-            return response.choices[0].message.content
-        except RequestCancelledError as e:
-            return f"Sorry, your budget has been exhausted. {e}"
-    ```
-  </Tab>
-</Tabs>
-
-## Step 6: Clean Up on Exit
-
-Always call `uninstrument()` when your application shuts down to flush remaining metrics:
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    import { uninstrument } from "aden-ts";
-
-    // In your shutdown handler
-    await uninstrument();
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    from aden import uninstrument
-
-    # In your shutdown handler
-    uninstrument()
-    ```
-  </Tab>
-</Tabs>
-
-## Complete Example
-
-Here's everything together:
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    import "dotenv/config";
-    import OpenAI from "openai";
-    import {
-      instrument,
-      uninstrument,
-      createConsoleEmitter,
-      RequestCancelledError,
-    } from "aden-ts";
-
-    // Initialize Aden FIRST
-    await instrument({
-      apiKey: process.env.ADEN_API_KEY,
-      serverUrl: process.env.ADEN_API_URL,
-      emitMetric: createConsoleEmitter({ pretty: true }),
-      onAlert: (alert) => console.log(`[Aden ${alert.level}] ${alert.message}`),
-      sdks: { OpenAI },
-    });
-
-    // Your agent function
-    async function runAgent(userInput: string): Promise<string> {
-      try {
-        const openai = new OpenAI();
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [{ role: "user", content: userInput }],
-        });
-        return response.choices[0]?.message?.content ?? "";
-      } catch (e) {
-        if (e instanceof RequestCancelledError) {
-          return `Sorry, your budget has been exhausted. ${e.message}`;
-        }
-        throw e;
-      }
-    }
-
-    // Main entry point
-    async function main() {
-      try {
-        const result = await runAgent("Hello, world!");
-        console.log(result);
-      } finally {
-        await uninstrument();
-      }
-    }
-
-    main();
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    import os
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    from openai import OpenAI
-    from aden import (
-        instrument,
-        uninstrument,
-        MeterOptions,
-        create_console_emitter,
-        RequestCancelledError,
-    )
-
-    # Initialize Aden FIRST
-    instrument(MeterOptions(
-        api_key=os.environ.get("ADEN_API_KEY"),
-        server_url=os.environ.get("ADEN_API_URL"),
-        emit_metric=create_console_emitter(pretty=True),
-        on_alert=lambda alert: print(f"[Aden {alert.level}] {alert.message}"),
-    ))
-
-    # Your agent function
-    def run_agent(user_input: str) -> str:
-        try:
-            client = OpenAI()
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": user_input}],
-            )
-            return response.choices[0].message.content
-        except RequestCancelledError as e:
-            return f"Sorry, your budget has been exhausted. {e}"
-
-    # Main entry point
-    if __name__ == "__main__":
-        try:
-            result = run_agent("Hello, world!")
-            print(result)
-        finally:
-            uninstrument()
-    ```
-  </Tab>
-</Tabs>
-
-## You're Instrumented
-
-Run your code and you'll see metrics in your console:
-
-```
-[aden] openai/gpt-4o | 45 tokens | 892ms | $0.00135
+# Show agent information
+PYTHONPATH=core:exports python -m support_ticket_agent info
 ```
 
-Every LLM call is now tracked with latency, token usage, model, and estimated cost.
+Run the agent with sample input:
+
+```bash
+PYTHONPATH=core:exports python -m support_ticket_agent run --input '{
+  "ticket_content": "My login is broken. Error 401.",
+  "customer_id": "CUST-123",
+  "ticket_id": "TKT-456"
+}'
+```
+
+<Tip>
+Use `--mock` flag to test agents without making LLM API calls:
+```bash
+PYTHONPATH=core:exports python -m support_ticket_agent run --mock --input '{...}'
+```
+</Tip>
+
+## Step 5: Explore Other Agents
+
+The framework includes several example agents:
+
+```bash
+# Market Research Agent
+PYTHONPATH=core:exports python -m market_research_agent info
+
+# Outbound Sales Agent
+PYTHONPATH=core:exports python -m outbound_sales_agent validate
+
+# Personal Assistant Agent
+PYTHONPATH=core:exports python -m personal_assistant_agent info
+```
+
+## You're Ready
+
+You now have a working agent development environment. Your agents can process inputs, make LLM calls, and execute complex workflows.
 
 ## Next Steps
 
 <CardGroup cols={2}>
+  <Card title="Build Your Own Agent" icon="hammer" href="/use-cases/agent-builder">
+    Learn how to create custom goal-driven agents
+  </Card>
+  <Card title="Agent Performance" icon="chart-line" href="/use-cases/agent-performance-monitoring">
+    Monitor and optimize your agent's performance
+  </Card>
   <Card title="Cost Control" icon="shield" href="/cost-control">
-    Set budgets, alerts, and automatic model degradation
-  </Card>
-  <Card title="TypeScript SDK" icon="js" href="/sdk/typescript/introduction">
-    Multi-provider support, frameworks, and advanced configuration
-  </Card>
-  <Card title="Python SDK" icon="python" href="/sdk/python/introduction">
-    Complete Python documentation and examples
+    Set budgets and alerts for LLM usage
   </Card>
   <Card title="Book a Call" icon="calendar" href="https://calendly.com/contact_aden/discovery-call">
-    Get your API key and dashboard access
+    Get help with your agent development
   </Card>
 </CardGroup>
