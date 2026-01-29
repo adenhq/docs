@@ -38,6 +38,7 @@
             "group": "Agent Development",
             "pages": [
               "building/first-agent",
+              "building/goals",
               "building/nodes",
               "building/edges",
               "building/human-in-the-loop"
