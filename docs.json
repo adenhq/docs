@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Aden Documentation",
+  "name": "Aden Hive Documentation",
   "colors": {
     "primary": "#2563EB",
     "light": "#3B82F6",
@@ -17,27 +17,33 @@
             "group": "Overview",
             "pages": [
               "index",
-              "concepts/overview",
               "getting-started/quickstart",
+              "getting-started/create-account",
               "getting-started/self-hosting"
             ]
           },
           {
-            "group": "Core Concepts",
+            "group": "Key Concepts",
             "pages": [
-              "concepts/outcome-driven-development",
-              "concepts/agent-architecture"
+              "building-agent/concepts/overview",
+              "building-agent/concepts/goals-outcomes",
+              "building-agent/concepts/agent-graph",
+              "building-agent/concepts/worker-agent",
+              "building-agent/concepts/evolution",
+              "building-agent/concepts/outcome-driven-development",
+              "building-agent/concepts/agent-architecture"
             ]
           }
         ]
       },
       {
-        "tab": "Building Agents",
+        "tab": "Building Agent",
         "groups": [
           {
             "group": "Agent Development",
             "pages": [
               "building/first-agent",
+              "building/build-with-existing-agent",
               "building/goals",
               "building/nodes",
               "building/edges",
@@ -49,70 +55,26 @@
             "pages": [
               "building/testing"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "SDKs",
-        "groups": [
-          {
-            "group": "Use Cases",
-            "pages": [
-              "use-cases/cost-control",
-              "use-cases/pricing-simulator",
-              "use-cases/billing",
-              "use-cases/agent-performance-monitoring",
-              "use-cases/customer-portal"
-            ]
           },
           {
-            "group": "TypeScript SDK",
+            "group": "Credentials",
             "pages": [
-              "sdk/typescript/introduction",
-              "sdk/typescript/installation",
-              "sdk/typescript/instrumentation",
-              "sdk/typescript/frameworks",
-              "sdk/typescript/emitters",
-              "sdk/typescript/agent-tracking",
-              "sdk/typescript/support",
-              "sdk/typescript/troubleshooting"
-            ]
-          },
-          {
-            "group": "Python SDK",
-            "pages": [
-              "sdk/python/introduction",
-              "sdk/python/installation",
-              "sdk/python/instrumentation",
-              "sdk/python/frameworks",
-              "sdk/python/emitters",
-              "sdk/python/support",
-              "sdk/python/troubleshooting"
+              "building/credential-store",
+              "building/aden-credential-sync"
             ]
           }
         ]
       },
       {
-        "tab": "Tools & Integrations",
+        "tab": "Supported Coding Agent",
         "groups": [
           {
-            "group": "MCP Server",
+            "group": "Editor Setup",
             "pages": [
-              "mcp-server/introduction",
-              "mcp-server/installation",
-              "mcp-server/configuration"
-            ]
-          },
-          {
-            "group": "Financial Tools",
-            "pages": [
-              "mcp-server/tools/overview",
-              "mcp-server/tools/reports",
-              "mcp-server/tools/journal-entries",
-              "mcp-server/tools/bills",
-              "mcp-server/tools/invoices",
-              "mcp-server/tools/accounting-periods",
-              "mcp-server/tools/chart-of-accounts"
+              "building-agent/ai-tools/codex",
+              "building-agent/ai-tools/claude-code",
+              "building-agent/ai-tools/cursor",
+              "building-agent/ai-tools/windsurf"
             ]
           }
         ]
@@ -148,13 +110,6 @@
       "type": "button",
       "label": "Get Started",
       "href": "https://adenhq.com"
-    }
-  },
-  "api": {
-    "baseUrl": "https://kube.acho.io",
-    "auth": {
-      "method": "bearer",
-      "name": "Authorization"
     }
   },
   "contextual": {

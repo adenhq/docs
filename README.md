@@ -1,43 +1,61 @@
 # Aden Documentation
 
-Documentation for Aden's LLM Observability & Cost Control SDK, plus the General Ledger API.
+Documentation for the Aden platform and Hive framework.
 
-## Documentation Structure
+## Scope
 
-- **Getting Started**: Introduction, Quickstart, and Cost Control
-- **TypeScript SDK**: Complete TypeScript/Node.js documentation
-- **Python SDK**: Complete Python documentation
-- **General Ledger API**: Financial management API reference
-- **MCP Server**: Model Context Protocol server for AI-powered operations
+This `docs/` workspace covers:
 
-## Local Development
+- Hive framework concepts and build guides (goal-driven, adaptive agent development)
 
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview documentation changes locally:
+## Canonical Product References
 
+Keep these in sync with Hive project docs:
+
+- `hive/README.md` for positioning, setup flow, and top-level feature language
+- `hive/docs/credential-store-usage.md` for credential store architecture and usage patterns
+- `hive/docs/aden-credential-sync.md` for Aden credential sync API contracts and integration patterns
+
+## Quick Start (Hive)
+
+```bash
+git clone https://github.com/adenhq/hive.git
+cd hive
+./quickstart.sh
 ```
+
+Then build and run an exported agent:
+
+```bash
+PYTHONPATH=exports uv run python -m your_agent_name run --input '{...}'
+```
+
+## Local Docs Development
+
+Install Mintlify CLI:
+
+```bash
 npm i -g mint
 ```
 
-Run at the root of the documentation (where `docs.json` is located):
+Run from `docs/` (where `docs.json` is located):
 
-```
+```bash
 mint dev
 ```
 
-View your local preview at `http://localhost:3000`.
+Preview: `http://localhost:3000`
 
-## Updating Logos
+## Assets
 
-Replace these files with your Aden logos:
-- `logo/light.svg` - Logo for light mode
-- `logo/dark.svg` - Logo for dark mode
-- `favicon.svg` - Browser tab icon
+Brand assets used by docs:
 
-## Publishing Changes
-
-Changes are deployed automatically after pushing to the default branch.
+- `logo/light.svg`
+- `logo/dark.svg`
+- `favicon.svg`
 
 ## Resources
 
 - [Aden Website](https://adenhq.com)
+- [Hive GitHub](https://github.com/adenhq/hive)
 - [Mintlify Documentation](https://mintlify.com/docs)

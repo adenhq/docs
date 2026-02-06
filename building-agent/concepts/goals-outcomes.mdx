@@ -1,0 +1,77 @@
+---
+title: "Goals and Outcomes"
+description: "Define measurable success criteria, constraints, and context for Hive agents"
+---
+
+## The Core Idea
+
+Hive is outcome-driven: you define what success looks like, and the agent adapts toward that result.
+
+Instead of hardcoding every step, you define:
+
+- A goal
+- Success criteria (weighted quality checks)
+- Constraints (hard and soft boundaries)
+- Context (domain knowledge and preferences)
+
+## Task-Driven vs Goal-Driven vs Outcome-Driven
+
+| Paradigm | Main Question | Limitation |
+|----------|---------------|------------|
+| Task-Driven | "Did each step run?" | Correct steps can still produce poor results |
+| Goal-Driven | "Are we aiming correctly?" | Goals can be vague without measurable criteria |
+| Outcome-Driven | "Did we produce the desired result?" | Requires clear metrics and evaluation discipline |
+
+## Goal as a Structured Contract
+
+In Hive, a goal is a structured object with three parts.
+
+### Success Criteria
+
+Each criterion defines a measurable quality signal and a weight.
+
+Common metrics:
+
+- `output_contains`
+- `output_equals`
+- `llm_judge`
+- `custom`
+
+Weights allow trade-offs across multiple quality dimensions.
+
+### Constraints
+
+Constraints define non-negotiables and preferences.
+
+- Hard constraints: violation triggers failure/escalation
+- Soft constraints: violation is tolerated with warning/replan
+
+Typical categories:
+
+- `time`
+- `cost`
+- `safety`
+- `scope`
+- `quality`
+
+### Context
+
+Context supplies durable background information that should influence agent decisions and LLM behavior.
+
+## Why This Model Matters
+
+1. The agent can self-correct during execution against explicit criteria.
+2. Evolution has a target because failures map to specific unmet criteria.
+3. Humans retain control through hard constraints and intervention gates.
+
+## Goal Lifecycle
+
+Goals typically move through:
+
+`DRAFT -> READY -> ACTIVE -> COMPLETED | FAILED | SUSPENDED`
+
+## Related Concepts
+
+- [Outcome-Driven Development](/building-agent/concepts/outcome-driven-development)
+- [Agent Graph](/building-agent/concepts/agent-graph)
+- [Evolution](/building-agent/concepts/evolution)

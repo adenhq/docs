@@ -1,0 +1,52 @@
+---
+title: "Evolution"
+description: "How Hive uses failure data to iteratively improve agent behavior"
+---
+
+## Evolution vs Adaptiveness
+
+Evolution is the mechanism. Adaptiveness is the result.
+
+Hive captures failure data and uses coding-agent driven changes to produce better next versions.
+
+## Evolution Loop
+
+1. Execute: agent runs on real inputs
+2. Evaluate: outcomes are checked against criteria and constraints
+3. Diagnose: failure is localized to nodes, criteria, and decision traces
+4. Regenerate: graph/prompts/tools/edges are revised and redeployed
+
+## What Can Evolve
+
+- Prompts and instructions
+- Graph structure
+- Edge conditions
+- Tool selection
+- Constraint and criteria tuning
+
+## Key Distinction
+
+Evolution does not imply general intelligence gains. It increases reliability for observed failure patterns over generations.
+
+## Why Logging Matters
+
+Evolution quality depends on runtime evidence:
+
+- Node-level traces
+- Decision logs
+- Tool invocation outcomes
+- Cost and latency metrics
+
+Without this, changes are guesswork.
+
+## Operational Guidance
+
+- Treat every production failure as test input for the next iteration
+- Capture reproducible failure context
+- Add regression coverage before redeploying
+
+## Related Concepts
+
+- [Goals and Outcomes](/building-agent/concepts/goals-outcomes)
+- [Agent Graph](/building-agent/concepts/agent-graph)
+- [Worker Agent](/building-agent/concepts/worker-agent)

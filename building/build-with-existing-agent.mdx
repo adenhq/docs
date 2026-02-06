@@ -1,0 +1,123 @@
+---
+title: "Build From Existing Agent"
+description: "Use an existing exported agent as the starting point for a new workflow"
+---
+
+This guide shows how to start from an existing agent instead of generating one from scratch.
+
+## When to Use This Path
+
+Use this approach when you want to:
+
+- Reuse a proven graph pattern
+- Add new capabilities to an existing workflow
+- Create a variant for a different team, market, or policy
+- Fix recurring failures and ship a refined version
+
+## Prerequisites
+
+- Existing agent under `exports/` (for example `exports/support_ticket_agent`) or `examples/`
+- Hive environment set up with `./quickstart.sh`
+- A clear change target: goals, constraints, nodes, or tools
+
+## 1. Copy the Base Agent
+
+From `exports/`:
+
+```bash
+cp -R exports/support_ticket_agent exports/support_ticket_agent_v2
+```
+
+Or start from an example agent:
+
+```bash
+cp -R examples/support_ticket_agent exports/support_ticket_agent_v2
+```
+
+Rename internal identifiers as needed (`name`, package/module references, and test fixtures).
+
+## 2. Update Goal and Constraints First
+
+Open the new agent files and update:
+
+- goal statement
+- success criteria
+- hard/soft constraints
+- required capabilities
+
+Start with goal updates before touching node logic. This keeps implementation aligned to measurable outcomes.
+
+## 3. Change Graph Structure
+
+Typical modifications:
+
+- Add node(s) for new tool calls or validation
+- Add conditional edges for fallback/retry paths
+- Insert `human_input` gates for sensitive actions
+- Split overloaded nodes into smaller steps
+
+Use these references while editing:
+
+- [Defining Goals](/building/goals)
+- [Node Types](/building/nodes)
+- [Edge Configuration](/building/edges)
+- [Human-in-the-Loop](/building/human-in-the-loop)
+
+## 4. Validate the New Agent
+
+```bash
+PYTHONPATH=exports uv run python -m support_ticket_agent_v2 validate
+PYTHONPATH=exports uv run python -m support_ticket_agent_v2 info
+```
+
+If validation fails, resolve schema, routing, or missing capability errors before testing.
+
+## 5. Run Regression + New Behavior Tests
+
+```bash
+PYTHONPATH=exports uv run pytest exports/support_ticket_agent_v2/tests/ -v
+```
+
+Add tests for:
+
+- unchanged baseline behavior
+- new branches and constraints
+- expected failure and escalation paths
+
+## 6. Smoke Run
+
+```bash
+PYTHONPATH=exports uv run python -m support_ticket_agent_v2 run --input '{
+  "task": "example input"
+}'
+```
+
+Use `--mock` during fast iteration.
+
+## 7. Promote Safely
+
+Before replacing the original agent:
+
+1. Verify success criteria are met on representative inputs.
+2. Confirm hard constraints are never violated.
+3. Keep the previous version available for rollback.
+
+## Recommended Versioning Pattern
+
+Use explicit suffixes for major revisions:
+
+- `agent_name_v2`
+- `agent_name_v3`
+
+Avoid in-place edits to production agents without version history.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="vial" href="/building/testing">
+    Strengthen regression coverage and edge-case checks
+  </Card>
+  <Card title="Key Concepts" icon="lightbulb" href="/building-agent/concepts/overview">
+    Revisit runtime and evolution concepts before major refactors
+  </Card>
+</CardGroup>

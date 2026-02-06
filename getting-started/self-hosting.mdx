@@ -1,177 +1,58 @@
 ---
 title: "Self-Hosting"
 sidebarTitle: "Self-Hosting (Alpha)"
-description: "Deploy Aden on your own infrastructure"
+description: "Run Aden Hive on your own infrastructure"
 ---
 
 <Warning>
-Self-hosting is currently in alpha stage and is planned for a major revamp soon.
+Self-hosting guidance is in active iteration. Use this page as an alpha baseline and validate against the latest `hive/README.md` before production rollout.
 </Warning>
 
 ## Overview
 
-Self-hosting Aden gives you complete control over your deployment, data, and infrastructure. This guide walks you through setting up Aden using Docker Compose.
+Self-hosting Hive gives you control over runtime environment, networking, and credentials.
 
-## Prerequisites
+## Baseline Setup
 
-<CardGroup cols={2}>
-  <Card title="Docker" icon="docker">
-    Docker Engine 20.10+ and Docker Compose v2+
-  </Card>
-  <Card title="Git" icon="git">
-    Git for cloning the repository
-  </Card>
-</CardGroup>
-
-## Installation
-
-### Step 1: Clone the Repository
-
-Get a copy of the latest Aden repository:
+1. Clone and prepare the repository:
 
 ```bash
-git clone https://github.com/adenhq/beeline
-cd beeline
+git clone https://github.com/adenhq/hive.git
+cd hive
+./quickstart.sh
 ```
 
-### Step 2: Run Docker Compose
-
-Start all services using Docker Compose:
+2. Configure provider credentials (for example):
 
 ```bash
-docker compose up
+export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-This will start:
-- Aden API server
-- Database (PostgreSQL)
-- Cache layer (Redis)
-- Web dashboard
-
-### Step 3: Access the Dashboard
-
-Once the services are running, access the Aden dashboard at:
-
-```
-http://localhost:3000
-```
-
-## Configuration
-
-The default `config.yaml` file comes with sensible defaults for quick testing. You only need to modify it for production deployments or custom requirements.
-
-### Key Configuration Options
-
-If you need to customize your deployment, edit the `config.yaml` file in the repository:
-
-**Server Ports** (if ports 3000/4000 are already in use):
-```yaml
-server:
-  frontend:
-    port: 3000  # Change to your desired frontend port
-  backend:
-    port: 4000  # Change to your desired backend port
-```
-
-**Database Connection** (for external database):
-```yaml
-database:
-  url: postgresql://honeycomb:honeycomb@localhost:5432/honeycomb
-  # Update with your database credentials and host
-```
-
-**Security** (required for production):
-```yaml
-auth:
-  jwt_secret: change-this-to-a-secure-random-string
-  # Generate a secure secret with: openssl rand -base64 32
-  jwt_expires_in: 7d
-```
-
-**CORS Settings** (for production deployments):
-```yaml
-cors:
-  origin: http://localhost:3000
-  # Change to your production frontend URL
-```
-
-**Application Environment**:
-```yaml
-app:
-  environment: development  # Change to 'production' for production
-  log_level: info  # Options: debug, info, warn, error
-```
-
-### Advanced Docker Compose Customization
-
-For advanced configurations, you can also modify the `docker-compose.yml` file to:
-- Change port mappings
-- Add volume mounts for persistence
-- Configure resource limits
-- Set up external networks
-
-## Connecting Your SDKs
-
-After deployment, configure your SDKs to point to your self-hosted instance:
-
-<Note>
-  Use `http://localhost:4000` as the server URL for self-hosted instances.
-</Note>
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    import { instrument } from "aden-ts";
-
-    await instrument({
-      apiKey: "your-api-key",
-      serverUrl: "http://localhost:8080", // Your self-hosted URL. Use http://localhost:4000 instead.
-      sdks: { OpenAI },
-    });
-    ```
-
-    Learn more in the [TypeScript SDK documentation](/sdk/typescript/introduction).
-  </Tab>
-  <Tab title="Python">
-    ```python
-    from aden import instrument, MeterOptions
-
-    instrument(MeterOptions(
-        api_key="your-api-key",
-        server_url="http://localhost:8080",  # Your self-hosted URL. Use http://localhost:4000 instead.
-    ))
-    ```
-
-    Learn more in the [Python SDK documentation](/sdk/python/introduction).
-  </Tab>
-</Tabs>
-
-## Updating
-
-To update your self-hosted Aden instance:
+3. Run agents from your own infrastructure:
 
 ```bash
-# Pull latest changes
-git pull origin main
-
-# Rebuild and restart services
-docker compose down
-docker compose up --build
+PYTHONPATH=exports uv run python -m your_agent_name run --input '{...}'
 ```
+
+## Deployment Notes
+
+- Prefer isolated environments (container, VM, or dedicated host)
+- Keep credential material in secure secret stores
+- Use environment-scoped configs for staging vs production
+- Add observability and alerting before enabling autonomous workflows
 
 ## Troubleshooting
 
-### Services Won't Start
-
-Check Docker logs for specific errors:
+### Dependency setup issues
 
 ```bash
-docker compose logs -f
+uv sync
+uv run python -c "import framework, aden_tools; print('ok')"
 ```
 
-## Github Documentation
+### Runtime import issues
 
-Visit the github [Beeline documentation](https://github.com/adenhq/beeline) for more information.
+Run commands from the `hive/` project root and ensure `PYTHONPATH=exports` is set.
 
 ## Need Help?
 
@@ -180,22 +61,16 @@ Visit the github [Beeline documentation](https://github.com/adenhq/beeline) for 
   icon="calendar"
   href="https://calendly.com/contact_aden/discovery-call"
 >
-  Get expert help with your self-hosted deployment.
+  Get help with production deployment and architecture decisions.
 </Card>
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
-    Learn how to instrument your first LLM call
+  <Card title="Quickstart Guide" icon="rocket" href="/getting-started/quickstart">
+    Set up local development and first execution
   </Card>
-  <Card title="TypeScript SDK" icon="js" href="/sdk/typescript/introduction">
-    Complete TypeScript documentation
-  </Card>
-  <Card title="Python SDK" icon="python" href="/sdk/python/introduction">
-    Complete Python documentation
-  </Card>
-  <Card title="Cost Control" icon="shield" href="/cost-control">
-    Set budgets and alerts for your deployment
+  <Card title="Build Your First Agent" icon="hammer" href="/building/first-agent">
+    Create and test your first goal-driven agent
   </Card>
 </CardGroup>

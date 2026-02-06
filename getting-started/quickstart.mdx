@@ -3,7 +3,7 @@ title: "Quickstart"
 description: "Set up your agent development environment and run your first agent"
 ---
 
-By the end of this guide, you'll have the Aden Agent Framework installed and run your first goal-driven agent.
+By the end of this guide, you will have Hive installed and run your first goal-driven agent.
 
 ## Prerequisites
 
@@ -12,117 +12,100 @@ By the end of this guide, you'll have the Aden Agent Framework installed and run
     Python 3.11 or higher (3.11, 3.12, or 3.13)
   </Card>
   <Card title="LLM Provider" icon="key">
-    API key for Anthropic (recommended) or OpenAI
+    API key for Anthropic, OpenAI, Gemini, or another supported provider
   </Card>
 </CardGroup>
 
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/adenhq/hive
+git clone https://github.com/adenhq/hive.git
 cd hive
 ```
 
-## Step 2: Run the Setup Script
+## Step 2: Run the Setup Wizard
 
-The automated setup script handles all dependencies:
+Run the onboarding script:
 
 ```bash
-./scripts/setup-python.sh
+./quickstart.sh
 ```
 
 This will:
-- Check your Python version
-- Install the core framework package (`framework`)
-- Install the tools package (`aden_tools`)
-- Fix package compatibility issues
-- Verify all installations
+
+- Check Python and install `uv` if needed
+- Install workspace packages (`framework` and `aden_tools`)
+- Install Playwright browser dependencies when available
+- Verify imports and local environment health
+- Guide LLM provider configuration
 
 <Accordion title="Manual Setup (Alternative)">
-If you prefer to set up manually or the script fails:
+If you prefer manual setup or the wizard fails:
 
-**Install Core Framework:**
+**Install workspace dependencies:**
 ```bash
-cd core && pip install -e .
+uv sync
 ```
 
-**Install Tools Package:**
+**Verify imports:**
 ```bash
-cd tools && pip install -e .
-```
-
-**Upgrade OpenAI Package:**
-```bash
-pip install --upgrade "openai>=1.0.0"
-```
-
-**Verify Installation:**
-```bash
-python -c "import framework; print('✓ framework OK')"
-python -c "import aden_tools; print('✓ aden_tools OK')"
-python -c "import litellm; print('✓ litellm OK')"
+uv run python -c "import framework; print('framework OK')"
+uv run python -c "import aden_tools; print('aden_tools OK')"
+uv run python -c "import litellm; print('litellm OK')"
 ```
 </Accordion>
 
 ## Step 3: Set Up Environment
 
-Create a `.env` file or export your API key:
+Export at least one provider API key:
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
 <Info>
-For running agents with real LLMs, you'll need an API key from Anthropic or OpenAI. You can also use `--mock` mode for testing without API calls.
+`./quickstart.sh` can detect existing keys in your environment and generate a default Hive provider configuration.
 </Info>
 
 ## Step 4: Run Your First Agent
 
-All agent commands must be run from the project root with `PYTHONPATH` set:
+From the project root:
 
 ```bash
 # Validate agent structure
-PYTHONPATH=core:exports python -m support_ticket_agent validate
+PYTHONPATH=exports uv run python -m your_agent_name validate
 
 # Show agent information
-PYTHONPATH=core:exports python -m support_ticket_agent info
+PYTHONPATH=exports uv run python -m your_agent_name info
 ```
 
 Run the agent with sample input:
 
 ```bash
-PYTHONPATH=core:exports python -m support_ticket_agent run --input '{
-  "ticket_content": "My login is broken. Error 401.",
-  "customer_id": "CUST-123",
-  "ticket_id": "TKT-456"
+PYTHONPATH=exports uv run python -m your_agent_name run --input '{
+  "task": "Process this request and provide structured output."
 }'
 ```
 
 <Tip>
 Use `--mock` flag to test agents without making LLM API calls:
 ```bash
-PYTHONPATH=core:exports python -m support_ticket_agent run --mock --input '{...}'
+PYTHONPATH=exports uv run python -m your_agent_name run --mock --input '{...}'
 ```
 </Tip>
 
-## Step 5: Explore Other Agents
+## Step 5: Build a New Agent
 
-The framework includes several example agents:
+Use Claude Code agent skills:
 
 ```bash
-# Market Research Agent
-PYTHONPATH=core:exports python -m market_research_agent info
-
-# Outbound Sales Agent
-PYTHONPATH=core:exports python -m outbound_sales_agent validate
-
-# Personal Assistant Agent
-PYTHONPATH=core:exports python -m personal_assistant_agent info
+claude> /hive
+claude> /hive-test
 ```
 
 ## You're Ready
 
-You now have a working agent development environment. Your agents can process inputs, make LLM calls, and execute complex workflows.
+You now have a working Hive development environment for building, testing, and running agents.
 
 ## Next Steps
 
@@ -130,14 +113,13 @@ You now have a working agent development environment. Your agents can process in
   <Card title="Build Your Own Agent" icon="hammer" href="/building/first-agent">
     Learn how to create custom goal-driven agents
   </Card>
-  <Card title="Agent Performance" icon="chart-line" href="/use-cases/agent-performance-monitoring">
-    Monitor and optimize your agent's performance
+  <Card title="Core Concepts" icon="lightbulb" href="/building-agent/concepts/overview">
+    Understand the runtime model and architecture before scaling
   </Card>
-  <Card title="Cost Control" icon="shield" href="/cost-control">
-    Set budgets and alerts for LLM usage
+  <Card title="Testing" icon="vial" href="/building/testing">
+    Add goal-based regression tests before production rollout
   </Card>
   <Card title="Book a Call" icon="calendar" href="https://calendly.com/contact_aden/discovery-call">
     Get help with your agent development
   </Card>
 </CardGroup>
-

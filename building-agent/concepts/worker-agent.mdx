@@ -1,0 +1,65 @@
+---
+title: "Worker Agent"
+description: "Runtime model for sessions, iterations, headless execution, and resilience"
+---
+
+## What a Worker Agent Is
+
+A worker agent is a specialized runtime agent generated for a defined business process.
+
+The coding agent creates it; the worker agent executes it.
+
+## Sessions
+
+A session is one execution against one input.
+
+- Isolated shared memory and state per session
+- Supports long pauses/resumes (for HITL)
+- Captures complete execution history for debugging
+
+## Iterations
+
+Within a session, `event_loop` nodes iterate:
+
+1. reason
+2. call tools
+3. evaluate output
+4. retry or continue
+
+Iteration limits prevent runaway loops.
+
+## Headless Execution
+
+Worker agents are designed for unattended operation:
+
+- Continuous background execution
+- Human intervention only at explicit checkpoints
+- Suitable for production process automation
+
+## Runtime Responsibilities
+
+The runtime coordinates:
+
+- Graph execution lifecycle
+- LLM/tool access
+- Shared memory and credentials
+- Cost tracking and budget enforcement
+- Event streaming and observability
+- Crash recovery and checkpoint resume
+
+## Practical Model
+
+This mirrors team operations:
+
+- define role (goal)
+- provide context and tools
+- set quality constraints
+- automate routine actions
+- escalate exceptions to humans
+- evolve based on outcomes
+
+## Related Concepts
+
+- [Agent Graph](/building-agent/concepts/agent-graph)
+- [Evolution](/building-agent/concepts/evolution)
+- [Human-in-the-Loop](/building/human-in-the-loop)

@@ -1,0 +1,69 @@
+---
+title: "Agent Graph"
+description: "How nodes, edges, shared memory, and HITL form Hive runtime behavior"
+---
+
+## Why a Graph
+
+Business workflows are rarely linear. Hive models execution as a directed graph so agents can branch, retry, loop, and escalate.
+
+## Nodes
+
+Nodes are units of work that read from shared memory, perform logic, and write outputs.
+
+Core node types:
+
+- `event_loop`: multi-turn LLM + tools loop (primary autonomous workhorse)
+- `function`: deterministic Python logic
+- `router`: rule-based or model-assisted path selection
+- `human_input`: pause for supervised input
+- `llm_tool_use` and `llm_generate`: simpler one-shot LLM nodes
+
+### Self-Correction in `event_loop`
+
+Each iteration can end with:
+
+- Accept
+- Retry
+- Escalate
+
+This reflexive loop improves within-session reliability without restarting the full run.
+
+## Edges
+
+Edges define control flow:
+
+- On success
+- On failure
+- Conditional
+- LLM-decided
+
+Edges can also map outputs to downstream inputs and enable parallel branches.
+
+## Shared Memory
+
+Shared memory is session-scoped state used for cross-node communication.
+
+- Nodes declare read/write contracts
+- Execution remains traceable and structured
+- Final state represents run output and side effects
+
+## Human-in-the-Loop
+
+HITL nodes pause execution and preserve session state until a human responds.
+
+Use HITL for high-impact actions (financial operations, outbound communications, approvals).
+
+## Graph Shape Example
+
+```text
+intake -> research -> draft -> [human review] -> send -> done
+              ^                                     |
+              +------------ on failure -------------+
+```
+
+## Related Concepts
+
+- [Goals and Outcomes](/building-agent/concepts/goals-outcomes)
+- [Worker Agent](/building-agent/concepts/worker-agent)
+- [Evolution](/building-agent/concepts/evolution)

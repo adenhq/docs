@@ -39,7 +39,6 @@ We have a granular categorization system that allows Customers to attach budgets
 
 Docs & SDKs
 
-Docs: https://docs.adenhq.com/sdk/typescript/cost-control
 SDKs: https://github.com/adenhq/aden-analytics-agent
 
 Product Design & Prototyping

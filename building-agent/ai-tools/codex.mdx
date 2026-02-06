@@ -1,0 +1,121 @@
+---
+title: "OpenAI Codex CLI setup"
+description: "Configure OpenAI Codex CLI as a supported coding agent for Hive"
+icon: "terminal"
+---
+
+This guide documents Codex CLI support in Hive and how to use it alongside existing Claude Code and Cursor workflows.
+
+## What This Adds
+
+Codex support includes:
+
+- A `.codex/` configuration model
+- MCP server connections for `agent-builder` and `tools`
+- Instruction files mirroring Hive build/test workflows
+
+This aligns with the same workflow goals as existing coding-agent integrations.
+
+## Expected Project Structure
+
+```text
+.codex/
+├── config.json
+├── mcp_servers.json
+└── instructions/
+    ├── hive.md
+    ├── hive-create.md
+    ├── hive-concepts.md
+    ├── hive-patterns.md
+    ├── hive-test.md
+    └── hive-credentials.md
+```
+
+## MCP Server Configuration
+
+Use `.codex/mcp_servers.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-builder": {
+      "command": "python",
+      "args": ["-m", "framework.mcp.agent_builder_server"],
+      "cwd": "core",
+      "env": {
+        "PYTHONPATH": "../tools/src"
+      }
+    },
+    "tools": {
+      "command": "python",
+      "args": ["mcp_server.py", "--stdio"],
+      "cwd": "tools",
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    }
+  }
+}
+```
+
+## Instruction Files
+
+Mirror the existing Hive skill set into Codex instruction files:
+
+- `hive` for full build workflow
+- `hive-create` for creation flow
+- `hive-concepts` for conceptual guidance
+- `hive-patterns` for architecture best practices
+- `hive-test` for test-generation and validation
+- `hive-credentials` for credential setup/sync guidance
+
+Keep instruction intent consistent with Claude/Cursor variants, but adapt syntax to Codex’s instruction model.
+
+## Verification Checklist
+
+After setup, verify:
+
+1. Codex can connect to `agent-builder` MCP server.
+2. Codex can connect to `tools` MCP server.
+3. Hive instruction workflows are invokable from Codex.
+4. End-to-end agent creation/testing runs successfully.
+
+## Quick Validation Steps
+
+```bash
+# From hive root
+./quickstart.sh
+
+# Then launch Codex CLI and verify MCP-backed workflows
+codex
+```
+
+Use a small test goal first and confirm:
+
+- graph generation works
+- test scaffolding is created
+- tool calls route through MCP correctly
+
+## Troubleshooting
+
+### MCP server not visible
+
+- Confirm `.codex/mcp_servers.json` path and JSON validity
+- Validate `cwd` and `PYTHONPATH` values
+- Ensure dependencies are installed via `./quickstart.sh`
+
+### Instructions not recognized
+
+- Confirm files exist under `.codex/instructions/`
+- Verify naming matches expected invocation names
+
+### Python command failures
+
+- Run from Hive root
+- Ensure Python/uv environment is healthy
+
+## Related
+
+- [Claude Code setup](/building-agent/ai-tools/claude-code)
+- [Cursor setup](/building-agent/ai-tools/cursor)
+- [Build Your First Agent](/building/first-agent)

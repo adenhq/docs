@@ -5,7 +5,7 @@ description: "Build reliable, self-improving AI agents without hardcoding workfl
 
 ## Build Goal-Driven AI Agents
 
-Aden is a platform for building AI agents that improve themselves. Define your goal through natural language, and the framework generates a node graph with dynamically created connection code. When things break, the framework captures failure data, evolves the agent, and redeploys automatically.
+Aden Hive is a framework for building production-grade AI agents without manually wiring rigid workflows. You define outcomes in natural language, and Hive helps generate and run node graphs that can adapt when failures happen.
 
 <CardGroup cols={2}>
   <Card
@@ -18,7 +18,7 @@ Aden is a platform for building AI agents that improve themselves. Define your g
   <Card
     title="Core Concepts"
     icon="lightbulb"
-    href="/concepts/overview"
+    href="/building-agent/concepts/overview"
   >
     Understand goal-driven development and agent architecture.
   </Card>
@@ -26,41 +26,39 @@ Aden is a platform for building AI agents that improve themselves. Define your g
 
 ## Why Aden?
 
-Traditional agent frameworks require you to manually design workflows, define agent interactions, and handle failures reactively. Aden flips this paradigm - **you describe outcomes, and the system builds itself**.
+Traditional agent frameworks require manual workflow design, brittle control flow, and reactive fixes. Aden flips this model: **you describe outcomes, and the framework helps build and evolve the system**.
 
 <CardGroup cols={2}>
   <Card title="Goal-Driven" icon="bullseye">
-    Define objectives in natural language; the coding agent generates the agent graph and connection code.
+    Define objectives in natural language; the coding agent generates graph structure and connection logic.
   </Card>
   <Card title="Self-Improving" icon="arrows-rotate">
-    Framework captures failures, updates objectives, and evolves the agent graph automatically.
+    Runtime failures become inputs for iterative improvement and graph evolution.
   </Card>
   <Card title="Human-in-the-Loop" icon="user">
-    Built-in intervention nodes that pause execution for human input with configurable timeouts.
+    Built-in intervention nodes pause execution for human input with configurable timeouts.
   </Card>
   <Card title="Production-Ready" icon="rocket">
-    SDK-wrapped nodes with shared memory, observability, tools, and LLM access out of the box.
+    SDK-wrapped nodes include shared memory, observability, tool access, and control hooks.
   </Card>
 </CardGroup>
 
 ## Quick Start
 
 ```bash
-# Clone and setup
+# Clone and run setup wizard
 git clone https://github.com/adenhq/hive.git
-cd hive && ./scripts/setup-python.sh
-# Install Claude Code skills (one-time)
+cd hive
 ./quickstart.sh
 
-
 # Build an agent using Claude Code
-claude> /building-agents
+claude> /hive
 
 # Test your agent
-claude> /testing-agent
+claude> /hive-test
 
 # Run your agent
-PYTHONPATH=core:exports python -m your_agent run --input '{...}'
+PYTHONPATH=exports uv run python -m your_agent_name run --input '{...}'
 ```
 
 <Card
@@ -77,9 +75,9 @@ PYTHONPATH=core:exports python -m your_agent run --input '{...}'
 |------------------------|------|
 | Hardcode agent workflows | Describe goals in natural language |
 | Manual graph definition | Auto-generated agent graphs |
-| Reactive error handling | Proactive self-evolution |
+| Reactive error handling | Outcome-based adaptation |
 | Static tool configurations | Dynamic SDK-wrapped nodes |
-| DIY budget management | Integrated cost controls |
+| No native intervention model | Built-in HITL and control points |
 
 ## Platform Components
 
@@ -92,18 +90,18 @@ PYTHONPATH=core:exports python -m your_agent run --input '{...}'
     Build agents with nodes, edges, and goal-driven development.
   </Card>
   <Card
-    title="Instrumentation SDKs"
+    title="Core Concepts"
     icon="gauge"
-    href="/sdk/typescript/introduction"
+    href="/building-agent/concepts/overview"
   >
-    Track LLM calls, costs, and performance across your agents.
+    Learn goals, graph runtime, worker sessions, and evolution loops.
   </Card>
   <Card
-    title="MCP Tools"
+    title="Credentials"
     icon="wrench"
-    href="/mcp-server/introduction"
+    href="/building/credential-store"
   >
-    Pre-built tools for financial operations and more.
+    Configure secure credential storage, refresh, and sync patterns.
   </Card>
   <Card
     title="Testing Framework"
