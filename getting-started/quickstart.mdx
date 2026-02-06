@@ -103,6 +103,16 @@ claude> /hive
 claude> /hive-test
 ```
 
+## Optional: Run an Existing Agent
+
+If you already have an agent in `exports/`, run it directly:
+
+```bash
+PYTHONPATH=exports uv run python -m existing_agent_name run --input '{...}'
+```
+
+If you want to start from an existing exported or example agent and extend it, see [Build From Existing Agent](/building/build-with-existing-agent).
+
 ## You're Ready
 
 You now have a working Hive development environment for building, testing, and running agents.

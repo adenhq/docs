@@ -61,6 +61,16 @@ claude> /hive-test
 PYTHONPATH=exports uv run python -m your_agent_name run --input '{...}'
 ```
 
+## Run an Existing Agent
+
+You can also run an existing agent from `exports/` (or copy one from `examples/` first).
+
+```bash
+PYTHONPATH=exports uv run python -m existing_agent_name run --input '{...}'
+```
+
+For full reuse/refactor workflow, see [Build From Existing Agent](/building/build-with-existing-agent).
+
 <Card
   title="Quickstart Guide"
   icon="rocket"
