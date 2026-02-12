@@ -1,0 +1,137 @@
+---
+title: "Use Cases & Templates"
+description: "Ready-to-run agent templates for real business processes — start from a template, customize it, and deploy"
+---
+
+Hive ships with agent templates you can run immediately or use as a starting point for your own agents. Each template is a complete, working agent that covers a real business process.
+
+<Tip>
+Every template can be run as-is with `hive tui` or customized to fit your needs. See [Build From Existing Agent](/building/build-with-existing-agent) for the customization workflow.
+</Tip>
+
+## Starter Templates
+
+These are the best starting points — simple enough to understand in minutes, useful enough to deploy immediately.
+
+<CardGroup cols={3}>
+  <Card title="GitHub Issue Triaging" icon="github">
+    Automatically categorize, label, and route incoming GitHub issues by severity and type.
+  </Card>
+  <Card title="Tech & AI News Digest" icon="newspaper">
+    Curate a daily digest of the most relevant tech and AI news for your team.
+  </Card>
+  <Card title="Research Report Agent" icon="magnifying-glass">
+    Generate structured research reports on any topic with source citations.
+  </Card>
+  <Card title="Teams Daily Digest" icon="list-check">
+    Summarize daily activity and extract action items from your team communications.
+  </Card>
+  <Card title="Discord Autoreply Bot" icon="discord">
+    Automatically respond to common questions in your Discord server.
+  </Card>
+  <Card title="Finance Stock Digest" icon="chart-line">
+    Daily summary of stock movements, market trends, and financial news.
+  </Card>
+  <Card title="WhatsApp Auto Response" icon="comments">
+    Handle routine WhatsApp messages with intelligent automated replies.
+  </Card>
+  <Card title="Email Follow-up Agent" icon="envelope">
+    Track conversations and send timely follow-ups when responses go quiet.
+  </Card>
+  <Card title="Meeting Coordination" icon="calendar">
+    Find optimal meeting times across multiple participants and time zones.
+  </Card>
+</CardGroup>
+
+## Sales & Marketing
+
+Marketing is often the most time-consuming distraction for a CEO. You provide the vision; the agents provide the volume.
+
+<CardGroup cols={2}>
+  <Card title="Social Media Management" icon="share-nodes">
+    Schedule posts, reply to comments, and monitor trends across platforms. Keeps your presence consistent without daily manual effort.
+  </Card>
+  <Card title="News Jacking" icon="bolt">
+    Personalized outreach triggered by real-time company news — funding rounds, hires, press mentions. Strike while the iron is hot.
+  </Card>
+  <Card title="Newsletter Production" icon="envelope-open-text">
+    Take your raw ideas or voice memos and turn them into a polished weekly email. From brain dump to subscriber inbox.
+  </Card>
+  <Card title="CRM Hygiene" icon="database">
+    Ensure every lead has a follow-up date and a status update. No more leads falling through the cracks.
+  </Card>
+</CardGroup>
+
+## Customer Success
+
+You shouldn't be the one answering "How do I reset my password?" — but you should be the one closing deals.
+
+<CardGroup cols={2}>
+  <Card title="Inquiry Triaging" icon="filter">
+    Sort the tire kickers from the hot leads. Route inquiries to the right person or automated response.
+  </Card>
+  <Card title="Onboarding Assistance" icon="handshake">
+    Help new clients set up their accounts, send welcome kits, and complete initial configuration.
+  </Card>
+  <Card title="Support & Troubleshooting" icon="headset">
+    Handle Level 1 tech support for your platform. Resolve common issues and escalate what needs a human.
+  </Card>
+</CardGroup>
+
+## Operations Automation
+
+Your right hand. These agents keep the gears greased so you don't get stuck in the admin trap.
+
+<CardGroup cols={2}>
+  <Card title="Email Inbox Management" icon="inbox">
+    Clear out spam and highlight the three emails that actually need your brain. Protect your focus.
+  </Card>
+  <Card title="Invoicing & Collections" icon="file-invoice-dollar">
+    Send bills and — more importantly — politely chase down the people who haven't paid them.
+  </Card>
+  <Card title="Data Keeper" icon="table">
+    Pull data and reports from multiple sources and unify them in one place. Your single source of truth.
+  </Card>
+  <Card title="Calendar Coordination" icon="calendar-days">
+    Protect your deep work time from being fragmented by random 15-minute meetings.
+  </Card>
+</CardGroup>
+
+## Technical & Product Maintenance
+
+Unless you are a developer, tech debt will kill your productivity. These agents keep the lights on.
+
+<CardGroup cols={2}>
+  <Card title="Quality Assurance" icon="check-double">
+    Test new features or links before they go live to ensure nothing is broken.
+  </Card>
+  <Card title="Documentation" icon="book">
+    Turn your messy processes into clean Standard Operating Procedures (SOPs).
+  </Card>
+  <Card title="Issue Triaging" icon="triangle-exclamation">
+    Categorize and route incoming bug reports by severity. Nothing critical slips through.
+  </Card>
+</CardGroup>
+
+## Using a Template
+
+<Steps>
+  <Step title="Browse and pick a template">
+    Run `hive tui` to browse available agents, or explore the `examples/templates/` directory.
+  </Step>
+  <Step title="Run it as-is">
+    Test the template to see how it works. Hive validates prerequisites and runs the agent automatically.
+  </Step>
+  <Step title="Customize for your needs">
+    Copy the template, update the goal, adjust nodes and edges, and make it yours. See [Build From Existing Agent](/building/build-with-existing-agent).
+  </Step>
+  <Step title="Deploy to production">
+    Once you're happy with the results, [deploy](/building/deployment) your customized agent.
+  </Step>
+</Steps>
+
+## Can't Find What You Need?
+
+If your use case isn't covered by an existing template, you can generate a custom agent from scratch using your coding agent. Run `claude> /hive` to start a guided agent creation session, or see [Build Your First Agent](/building/first-agent).
+
+You can also share your use case in our [Discord](https://discord.com/invite/MXE49hrKDk) — the community might already have a solution, or your idea could become the next template.

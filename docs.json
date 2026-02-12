@@ -17,6 +17,8 @@
             "group": "Overview",
             "pages": [
               "index",
+              "getting-started/who-is-hive-for",
+              "getting-started/use-cases",
               "getting-started/quickstart",
               "getting-started/create-account",
               "getting-started/self-hosting"
@@ -37,7 +39,7 @@
         ]
       },
       {
-        "tab": "Building Agent",
+        "tab": "Building Agents",
         "groups": [
           {
             "group": "Agent Development",
@@ -51,9 +53,17 @@
             ]
           },
           {
-            "group": "Testing & Quality",
+            "group": "Testing & Debugging",
             "pages": [
-              "building/testing"
+              "building/testing",
+              "building/debugging"
+            ]
+          },
+          {
+            "group": "Deploy & Iterate",
+            "pages": [
+              "building/deployment",
+              "building/iteration"
             ]
           },
           {
@@ -66,7 +76,7 @@
         ]
       },
       {
-        "tab": "Supported Coding Agent",
+        "tab": "Coding Agents",
         "groups": [
           {
             "group": "Editor Setup",
@@ -82,6 +92,16 @@
     ],
     "global": {
       "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/adenhq/hive",
+          "icon": "github"
+        },
+        {
+          "anchor": "Discord",
+          "href": "https://discord.com/invite/MXE49hrKDk",
+          "icon": "discord"
+        },
         {
           "anchor": "Website",
           "href": "https://adenhq.com",
@@ -126,8 +146,10 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/acho-dev",
-      "linkedin": "https://linkedin.com/company/teamaden"
+      "github": "https://github.com/adenhq/hive",
+      "discord": "https://discord.com/invite/MXE49hrKDk",
+      "linkedin": "https://linkedin.com/company/teamaden",
+      "x": "https://x.com/aden_hq"
     }
   }
 }

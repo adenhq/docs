@@ -1,19 +1,35 @@
 ---
 title: "Introduction"
-description: "Build reliable, self-improving AI agents without hardcoding workflows"
+description: "Build production AI agents that automate real business processes — create, debug, deploy, and iterate with confidence"
 ---
 
-## Build Goal-Driven AI Agents
+## Your Developers' Success Is Our Success
 
-Aden Hive is a framework for building production-grade AI agents without manually wiring rigid workflows. You define outcomes in natural language, and Hive helps generate and run node graphs that can adapt when failures happen.
+Aden Hive is a framework for building production-grade AI agents that automate real business processes. You define outcomes in natural language, and Hive generates adaptive agent graphs that self-improve when failures happen.
+
+We built Hive around a simple principle: **if our developers aren't winning, we aren't winning.** Every feature, every template, every tool exists to help you create agents that work in production — not just in demos.
 
 <CardGroup cols={2}>
   <Card
-    title="Build Your First Agent"
-    icon="hammer"
-    href="/building/first-agent"
+    title="Who Is Hive For?"
+    icon="users"
+    href="/getting-started/who-is-hive-for"
   >
-    Create a goal-driven agent in minutes with Claude Code skills.
+    IT consultants, product builders, one-man CEOs, and developers automating real work.
+  </Card>
+  <Card
+    title="See What You Can Build"
+    icon="grid-2"
+    href="/getting-started/use-cases"
+  >
+    Browse ready-to-run agent templates for sales, support, ops, and more.
+  </Card>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/getting-started/quickstart"
+  >
+    Install Hive and reach your first success in under 10 minutes.
   </Card>
   <Card
     title="Core Concepts"
@@ -24,110 +40,114 @@ Aden Hive is a framework for building production-grade AI agents without manuall
   </Card>
 </CardGroup>
 
-## Why Aden?
+## What Developer Success Looks Like
 
-Traditional agent frameworks require manual workflow design, brittle control flow, and reactive fixes. Aden flips this model: **you describe outcomes, and the framework helps build and evolve the system**.
+Success with Hive follows a clear path. Every developer who uses Hive should be able to:
 
-<CardGroup cols={2}>
-  <Card title="Goal-Driven" icon="bullseye">
-    Define objectives in natural language; the coding agent generates graph structure and connection logic.
-  </Card>
-  <Card title="Self-Improving" icon="arrows-rotate">
-    Runtime failures become inputs for iterative improvement and graph evolution.
-  </Card>
-  <Card title="Human-in-the-Loop" icon="user">
-    Built-in intervention nodes pause execution for human input with configurable timeouts.
-  </Card>
-  <Card title="Production-Ready" icon="rocket">
-    SDK-wrapped nodes include shared memory, observability, tool access, and control hooks.
-  </Card>
-</CardGroup>
+<Steps>
+  <Step title="Create an agent">
+    Define your goal in plain language or start from a template. Hive generates the agent graph and connection code for you.
+  </Step>
+  <Step title="Test and debug the agent">
+    Run your agent interactively with `hive tui`, use three-level observability to see exactly what happened, and fix issues fast.
+  </Step>
+  <Step title="Deploy the agent">
+    Ship to production with `hive deploy` — locally via Docker or to Aden Cloud for zero-ops deployment.
+  </Step>
+  <Step title="Maintain the agent">
+    Own the business process. Get alerted on failures, monitor costs, and keep your agent reliable over time.
+  </Step>
+  <Step title="Iterate on the agent">
+    Add integrations, expand use cases, and let the evolution loop improve your agent based on real-world outcomes.
+  </Step>
+</Steps>
 
 ## Quick Start
 
 ```bash
-# Clone and run setup wizard
+# Clone and install
 git clone https://github.com/adenhq/hive.git
 cd hive
 ./quickstart.sh
 
-# Build an agent using Claude Code
+# Build an agent with your coding agent
 claude> /hive
 
-# Test your agent
-claude> /hive-test
+# Test interactively
+hive tui
 
-# Run your agent
-PYTHONPATH=exports uv run python -m your_agent_name run --input '{...}'
+# Run directly
+hive run exports/your_agent_name --input '{"key": "value"}'
 ```
 
-## Run an Existing Agent
+## Why Aden
 
-You can also run an existing agent from `exports/` (or copy one from `examples/` first).
+Traditional agent frameworks require you to manually wire workflows, handle failures reactively, and rebuild when things change. Aden flips this: **you describe outcomes, the framework builds and evolves itself**.
 
-```bash
-PYTHONPATH=exports uv run python -m existing_agent_name run --input '{...}'
-```
-
-For full reuse/refactor workflow, see [Build From Existing Agent](/building/build-with-existing-agent).
-
-<Card
-  title="Quickstart Guide"
-  icon="rocket"
-  href="/getting-started/quickstart"
->
-  Complete setup instructions and your first agent in under 10 minutes.
-</Card>
-
-## What Makes Aden Different
-
-| Traditional Frameworks | Aden |
-|------------------------|------|
+| Traditional Frameworks | Aden Hive |
+|------------------------|-----------|
 | Hardcode agent workflows | Describe goals in natural language |
 | Manual graph definition | Auto-generated agent graphs |
 | Reactive error handling | Outcome-based adaptation |
 | Static tool configurations | Dynamic SDK-wrapped nodes |
-| No native intervention model | Built-in HITL and control points |
-
-## Platform Components
+| No native intervention model | Built-in human-in-the-loop |
+| DIY monitoring | Three-level observability built in |
 
 <CardGroup cols={2}>
   <Card
-    title="Agent Building SDK"
-    icon="cube"
+    title="Build Your First Agent"
+    icon="hammer"
     href="/building/first-agent"
   >
-    Build agents with nodes, edges, and goal-driven development.
+    Go from zero to a running agent with step-by-step guidance.
   </Card>
   <Card
-    title="Core Concepts"
-    icon="gauge"
-    href="/building-agent/concepts/overview"
+    title="Start From a Template"
+    icon="copy"
+    href="/building/build-with-existing-agent"
   >
-    Learn goals, graph runtime, worker sessions, and evolution loops.
+    Pick an existing agent, customize it, and make it yours.
   </Card>
   <Card
-    title="Credentials"
-    icon="wrench"
-    href="/building/credential-store"
+    title="Deploy to Production"
+    icon="cloud-arrow-up"
+    href="/building/deployment"
   >
-    Configure secure credential storage, refresh, and sync patterns.
+    Local Docker deployment or zero-ops Aden Cloud — your choice.
   </Card>
   <Card
-    title="Testing Framework"
-    icon="vial"
-    href="/building/testing"
+    title="Debug & Iterate"
+    icon="bug"
+    href="/building/debugging"
   >
-    Validate agent behavior with goal-based testing.
+    Three-level logging and AI-assisted debugging to fix issues fast.
   </Card>
 </CardGroup>
 
-## Need Help?
+## Community
 
-<Card
-  title="Book a Discovery Call"
-  icon="calendar"
-  href="https://calendly.com/contact_aden/discovery-call"
->
-  Schedule a call with our team to learn more.
-</Card>
+Join thousands of developers building production agents with Hive.
+
+<CardGroup cols={3}>
+  <Card
+    title="Discord"
+    icon="discord"
+    href="https://discord.com/invite/MXE49hrKDk"
+  >
+    Get help, share agent ideas, and connect with the community.
+  </Card>
+  <Card
+    title="GitHub"
+    icon="github"
+    href="https://github.com/adenhq/hive"
+  >
+    Star the repo, report issues, and contribute templates.
+  </Card>
+  <Card
+    title="Book a Call"
+    icon="calendar"
+    href="https://calendly.com/contact_aden/discovery-call"
+  >
+    Talk to our team about your use case.
+  </Card>
+</CardGroup>

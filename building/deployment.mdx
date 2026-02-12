@@ -1,0 +1,123 @@
+---
+title: "Deployment"
+description: "Deploy agents to production — locally with Docker, on Aden Cloud for zero-ops, or as fully autonomous systems"
+---
+
+Once your agent passes testing and you're confident in its behavior, it's time to ship it. Hive supports three deployment models depending on your needs.
+
+## Deployment Models
+
+<CardGroup cols={3}>
+  <Card title="Local (Docker)" icon="docker">
+    Full control. Run agents on your own infrastructure with Docker.
+  </Card>
+  <Card title="Aden Cloud" icon="cloud">
+    Zero-ops. Managed deployment with built-in logging, scaling, and credential management.
+  </Card>
+  <Card title="Autonomous" icon="robot">
+    Self-running. Agents that operate continuously with event-driven triggers and self-recovery.
+  </Card>
+</CardGroup>
+
+## Local Deployment
+
+By default, Hive supports deployment through Docker. This gives you full control over your runtime environment, networking, and credentials.
+
+<Steps>
+  <Step title="Pre-flight validation">
+    Validate your agent before deploying. This checks structure, credentials, and dependencies.
+
+    ```bash
+    hive validate <agent_name>
+    ```
+  </Step>
+  <Step title="Deploy with one command">
+    ```bash
+    hive deploy local <agent_name>
+    ```
+
+    This builds a container with your agent, its dependencies, and the Hive runtime.
+  </Step>
+  <Step title="Configure credentials">
+    Your agent uses local credentials for APIs and services. For OAuth-based integrations, Aden Cloud handles token refresh automatically.
+  </Step>
+  <Step title="Verify the deployment">
+    Check that the agent is running and accessible:
+
+    ```bash
+    hive status <agent_name>
+    ```
+  </Step>
+</Steps>
+
+<Info>
+Prefer isolated environments (container, VM, or dedicated host). Keep credentials in secure secret stores. Use environment-scoped configs for staging vs. production.
+</Info>
+
+## Cloud Deployment
+
+If you want managed infrastructure with easier credential management and built-in observability, Aden Cloud is the simpler path. You get secure defaults, scaling, and logging out of the box — at the cost of less low-level control.
+
+**What you get with Aden Cloud:**
+- Managed compute and scaling
+- Built-in credential sync and OAuth refresh
+- Real-time logging and monitoring dashboard
+- Automatic restarts and failure recovery
+- Cost tracking and budget enforcement
+
+See [Create an Account](/getting-started/create-account) to get started with Aden Cloud, or [Aden Credential Sync](/building/aden-credential-sync) for how cloud credentials work.
+
+## Autonomous Agent Deployment
+
+For agents that need to run continuously without human intervention, Hive provides built-in support for autonomous operation:
+
+- **Memory sustainability** — Decide what memory to keep and what to discard across sessions, so your agent doesn't grow unbounded or forget critical context
+- **Event source management** — Trigger agent runs from external events like incoming emails, webhooks, or scheduled cron jobs
+- **Recoverability** — Automatically recover from crashes and resume from the last checkpoint
+- **Repeatability** — Ensure consistent behavior across identical inputs
+- **Volume handling** — Support batch operations when you need to process many items at once
+
+## Deployment Strategy
+
+Interactive and autonomous modes look different from the outside, but the core remains the same. Your deployment strategy should be consistent across both:
+
+<Steps>
+  <Step title="Start interactive">
+    Run your agent with `hive tui` to validate behavior with real inputs.
+  </Step>
+  <Step title="Move to scheduled">
+    Set up cron-based or event-triggered runs. Monitor logs and costs.
+  </Step>
+  <Step title="Go autonomous">
+    Remove the human-in-the-loop gates for low-risk decisions. Keep alerts for failures and escalations.
+  </Step>
+</Steps>
+
+## Runtime Guardrails
+
+Hive provides built-in safety mechanisms to keep your agents within bounds in production:
+
+- **Cost limits** — Set maximum spend per run, per day, or per month
+- **Timeout policies** — Prevent runaway execution with configurable timeouts
+- **Model degradation** — Automatically fall back to cheaper models when budget runs low
+- **Human-in-the-loop gates** — Require human approval for high-impact actions
+- **Escalation policies** — Route failures to the right person instead of silently breaking
+
+## Developer Trust
+
+To deploy agents for production use with confidence, Hive provides:
+
+- **Transparency** — Full visibility into what the agent did and why through three-level [logging](/building/debugging)
+- **Control** — Configurable guardrails, intervention points, and approval flows
+- **Reliability** — Self-healing mechanisms and failure recovery built into the runtime
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Iteration" icon="arrows-rotate" href="/building/iteration">
+    Improve your deployed agent based on real-world performance.
+  </Card>
+  <Card title="Debugging" icon="bug" href="/building/debugging">
+    Diagnose and fix production issues with three-level observability.
+  </Card>
+</CardGroup>

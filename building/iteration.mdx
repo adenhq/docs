@@ -1,0 +1,110 @@
+---
+title: "Iteration"
+description: "Evolve your agents from MVP to production-grade — expand use cases, improve reliability, and let the evolution loop do the work"
+---
+
+After your agent runs successfully for the first time, the real work begins: making it better. Hive is designed for continuous iteration, from expanding what your agent can do to letting the framework automatically improve it.
+
+## Two Modes of Iteration
+
+### Building Iteration — Expanding Your Agent
+
+After your MVP agent or sample agent runs, you'll want to expand its capabilities. This is like debugging, but forward-looking: instead of fixing what's broken, you're adding what's missing.
+
+Common iteration patterns:
+
+- **Add new integrations** — Connect your agent to additional tools and APIs as your workflow expands
+- **Handle more edge cases** — Add nodes and edges that cover scenarios your initial agent didn't address
+- **Improve prompts** — Refine node prompts based on real-world output quality
+- **Add human-in-the-loop gates** — Insert approval steps for high-risk actions you initially automated
+- **Tighten constraints** — Add cost limits, timeout policies, or quality thresholds
+
+<Tip>
+Use `hive tui` to test each iteration interactively before deploying. Run the same inputs through your updated agent and compare outputs.
+</Tip>
+
+### Production Iteration — Evolution and Adaptation
+
+Once your agent is deployed, your taste and judgment still drive the direction — but AI becomes a significant force multiplier for rapidly iterating and solving problems.
+
+With Aden Cloud, production evolution can be fully automatic. The system runs continuous evaluation cycles:
+
+<Steps>
+  <Step title="Execute">
+    Your agent runs against real-world inputs in production.
+  </Step>
+  <Step title="Evaluate">
+    Outcomes are measured against your goal's success criteria and constraints.
+  </Step>
+  <Step title="Diagnose">
+    The framework identifies failure patterns and areas for improvement.
+  </Step>
+  <Step title="Regenerate">
+    The coding agent proposes changes to prompts, graph structure, edges, or tools.
+  </Step>
+  <Step title="Redeploy">
+    Updated agents are deployed and the cycle continues.
+  </Step>
+</Steps>
+
+## Version Control
+
+Iteration doesn't always improve everything. Sometimes a change helps one use case but hurts another. Hive includes version control so you can always go back.
+
+```bash
+# Restore to a previous version
+hive git restore
+```
+
+Think of it like git for your agents — every meaningful change is tracked, and you can revert when needed.
+
+## Agent Personality
+
+Not everything should change with iteration. Your agent has a personality — the tone, values, and goals that define who it is. Success isn't about having your agent constantly changing. It's about knowing that **your goal and personality stay fixed while the agent adapts to solve problems**.
+
+When you set up your agent's goal, the core identity persists across evolution cycles. The framework changes *how* the agent achieves the goal, not *what* the goal is.
+
+## Memory Management
+
+As your agent iterates and runs more sessions, memory management becomes important. Hive nodes have built-in mechanisms for:
+
+- **Node memory** — Each node maintains its own working memory within a session
+- **Memory passing** — Structured data flows between nodes through edges
+- **Cross-session memory** — Persistent memory that survives between runs using memory tools
+- **Memory compaction** — Automatic cleanup to prevent unbounded memory growth
+
+For custom memory logic or cross-session persistence, use the memory tools provided by the SDK.
+
+## The Iteration Lifecycle
+
+Over time, your agent should progress through these stages:
+
+| Stage | What You Do | What Hive Does |
+|-------|------------|----------------|
+| **MVP** | Build and test with templates | Generate graph, validate structure |
+| **First Success** | Deploy and monitor | Run, log, and surface attention flags |
+| **Expansion** | Add integrations and edge cases | Track what works and what fails |
+| **Maturity** | Set it and monitor | Evolve automatically based on outcomes |
+
+<Info>
+Everything before "First Success" should run as smoothly as possible — this is non-negotiable. The docs, templates, and tools are all designed to get you there fast.
+</Info>
+
+## Contributing Your Improvements
+
+If you've built something useful or found a better way to solve a common problem, share it with the community:
+
+- **Open an issue** on [GitHub](https://github.com/adenhq/hive/issues) if you encounter limitations
+- **Share your agent** in [Discord](https://discord.com/invite/MXE49hrKDk) for feedback
+- **Contribute a template** if your agent solves a common business process — see [CONTRIBUTING.md](https://github.com/adenhq/hive/blob/main/CONTRIBUTING.md)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Evolution Concepts" icon="dna" href="/building-agent/concepts/evolution">
+    Understand the theory behind Hive's adaptive evolution loop.
+  </Card>
+  <Card title="Debugging" icon="bug" href="/building/debugging">
+    When iteration reveals new issues, use three-level observability to diagnose them.
+  </Card>
+</CardGroup>

@@ -1,11 +1,11 @@
 ---
 title: "Testing Agents"
-description: "Validate agent behavior with goal-based and regression testing"
+description: "Validate agent behavior with goal-based and regression testing to build confidence and ensure production readiness"
 ---
 
 ## Overview
 
-Testing in Hive should confirm three things:
+Testing is the foundation of developer confidence. In Hive, comprehensive testing confirms three critical things:
 
 - The agent meets success criteria defined by the goal
 - Constraints are respected under normal and edge inputs
@@ -106,6 +106,8 @@ jobs:
 - Treat constraints as mandatory API contracts, not optional hints
 - Track test coverage across success, failure, retry, and HITL branches
 
+> **Testing and Debugging**: Testing catches issues before production. Once your agent is live, [debugging](/building/debugging) tools help you diagnose and fix issues based on real-world behavior.
+
 ## Next Steps
 
 <CardGroup cols={2}>
@@ -114,5 +116,11 @@ jobs:
   </Card>
   <Card title="Human-in-the-Loop" icon="user" href="/building/human-in-the-loop">
     Add supervised decision points to sensitive actions
+  </Card>
+  <Card title="Debugging" icon="bug" href="/building/debugging">
+    Diagnose and fix issues discovered in testing or production
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/building/deployment">
+    Deploy your tested agent to production
   </Card>
 </CardGroup>

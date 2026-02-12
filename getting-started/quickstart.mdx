@@ -1,61 +1,54 @@
 ---
 title: "Quickstart"
-description: "Set up your agent development environment and run your first agent"
+description: "Install Hive and reach your first success — a running, goal-driven agent — in under 10 minutes"
 ---
 
-By the end of this guide, you will have Hive installed and run your first goal-driven agent.
+By the end of this guide, you'll have Hive installed and your first agent running. That's your **First Success** — and everything from here should be smooth.
 
 ## Prerequisites
 
 <CardGroup cols={2}>
-  <Card title="Python" icon="python">
-    Python 3.11 or higher (3.11, 3.12, or 3.13)
+  <Card title="Python 3.11+" icon="python">
+    Python 3.11, 3.12, or 3.13. Check with `python --version`.
   </Card>
-  <Card title="LLM Provider" icon="key">
-    API key for Anthropic, OpenAI, Gemini, or another supported provider
+  <Card title="LLM API Key" icon="key">
+    An API key for Anthropic, OpenAI, Gemini, or another LiteLLM-supported provider.
   </Card>
 </CardGroup>
 
-## Step 1: Clone the Repository
+<Info>
+**Windows users:** Use WSL (Windows Subsystem for Linux) or Git Bash. Some automation scripts may not run correctly in standard Command Prompt or PowerShell.
+</Info>
+
+## Step 1: Clone and Install
 
 ```bash
 git clone https://github.com/adenhq/hive.git
 cd hive
-```
-
-## Step 2: Run the Setup Wizard
-
-Run the onboarding script:
-
-```bash
 ./quickstart.sh
 ```
 
-This will:
+The setup wizard handles everything:
 
-- Check Python and install `uv` if needed
-- Install workspace packages (`framework` and `aden_tools`)
-- Install Playwright browser dependencies when available
-- Verify imports and local environment health
-- Guide LLM provider configuration
+- Checks Python and installs `uv` if needed
+- Installs workspace packages (`framework` and `aden_tools`)
+- Installs Playwright browser dependencies when available
+- Verifies imports and local environment health
+- Guides LLM provider configuration
 
-<Accordion title="Manual Setup (Alternative)">
-If you prefer manual setup or the wizard fails:
-
-**Install workspace dependencies:**
+<Accordion title="Manual setup (if the wizard fails)">
 ```bash
+# Install dependencies
 uv sync
-```
 
-**Verify imports:**
-```bash
+# Verify everything works
 uv run python -c "import framework; print('framework OK')"
 uv run python -c "import aden_tools; print('aden_tools OK')"
 uv run python -c "import litellm; print('litellm OK')"
 ```
 </Accordion>
 
-## Step 3: Set Up Environment
+## Step 2: Set Up Your LLM Provider
 
 Export at least one provider API key:
 
@@ -63,66 +56,71 @@ Export at least one provider API key:
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-<Info>
-`./quickstart.sh` can detect existing keys in your environment and generate a default Hive provider configuration.
-</Info>
+<Tip>
+The quickstart script can detect existing keys in your environment and generate a default Hive provider configuration automatically.
+</Tip>
 
-## Step 4: Run Your First Agent
+## Step 3: Build Your First Agent
 
-From the project root:
-
-```bash
-# Validate agent structure
-PYTHONPATH=exports uv run python -m your_agent_name validate
-
-# Show agent information
-PYTHONPATH=exports uv run python -m your_agent_name info
-```
-
-Run the agent with sample input:
-
-```bash
-PYTHONPATH=exports uv run python -m your_agent_name run --input '{
-  "task": "Process this request and provide structured output."
-}'
-```
-
-## Step 5: Build a New Agent
-
-Use Claude Code agent skills:
+Use your coding agent to create an agent through a guided conversation:
 
 ```bash
 claude> /hive
-claude> /hive-test
 ```
 
-## Optional: Run an Existing Agent
+This walks you through defining your goal, generating the agent graph, and setting up the required nodes and edges. No manual wiring needed.
 
-If you already have an agent in `exports/`, run it directly:
+## Step 4: Test It
+
+Run your agent interactively to see it work:
 
 ```bash
-PYTHONPATH=exports uv run python -m existing_agent_name run --input '{...}'
+# Interactive dashboard
+hive tui
+
+# Or run directly with input
+hive run exports/your_agent_name --input '{"task": "Your input here"}'
 ```
 
-If you want to start from an existing exported or example agent and extend it, see [Build From Existing Agent](/building/build-with-existing-agent).
+<Check>
+**First Success!** If your agent ran and produced output, you've reached the milestone. Everything from here — debugging, deployment, iteration — builds on this foundation.
+</Check>
 
-## You're Ready
+## What Just Happened
 
-You now have a working Hive development environment for building, testing, and running agents.
+When you built your agent, Hive:
+
+1. **Parsed your goal** into structured success criteria and constraints
+2. **Generated a node graph** with the right nodes, edges, and connection code
+3. **Wrapped each node** with the SDK — giving it memory, LLM access, tools, and observability
+4. **Ran the graph** against your input, evaluating outcomes at each step
+
+## Alternative: Start From a Template
+
+If you'd rather start from something that already works and customize it:
+
+```bash
+# Browse available agents
+hive tui
+
+# Or copy an existing template and make it yours
+```
+
+See [Build From Existing Agent](/building/build-with-existing-agent) for the full workflow.
 
 ## Next Steps
 
 <CardGroup cols={2}>
   <Card title="Build Your Own Agent" icon="hammer" href="/building/first-agent">
-    Learn how to create custom goal-driven agents
+    Detailed guide to creating custom goal-driven agents.
+  </Card>
+  <Card title="Use Case Templates" icon="grid-2" href="/getting-started/use-cases">
+    Browse ready-made agents you can deploy or customize.
   </Card>
   <Card title="Core Concepts" icon="lightbulb" href="/building-agent/concepts/overview">
-    Understand the runtime model and architecture before scaling
+    Understand goals, graphs, and the runtime model.
   </Card>
   <Card title="Testing" icon="vial" href="/building/testing">
-    Add goal-based regression tests before production rollout
-  </Card>
-  <Card title="Book a Call" icon="calendar" href="https://calendly.com/contact_aden/discovery-call">
-    Get help with your agent development
+    Add goal-based tests before deploying to production.
   </Card>
 </CardGroup>

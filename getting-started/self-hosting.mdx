@@ -41,6 +41,8 @@ PYTHONPATH=exports uv run python -m your_agent_name run --input '{...}'
 - Use environment-scoped configs for staging vs production
 - Add observability and alerting before enabling autonomous workflows
 
+> **Complete Deployment Story**: Self-hosting covers the infrastructure setup. For comprehensive guidance on deployment strategies, monitoring, and safe rollout procedures, see the [deployment guide](/building/deployment).
+
 ## Troubleshooting
 
 ### Dependency setup issues
@@ -72,5 +74,11 @@ Run commands from the `hive/` project root and ensure `PYTHONPATH=exports` is se
   </Card>
   <Card title="Build Your First Agent" icon="hammer" href="/building/first-agent">
     Create and test your first goal-driven agent
+  </Card>
+  <Card title="Deployment Guide" icon="rocket" href="/building/deployment">
+    Move your agent from development to production safely
+  </Card>
+  <Card title="Monitoring and Ops" icon="chart-line" href="/building/monitoring">
+    Track agent health and performance in production
   </Card>
 </CardGroup>

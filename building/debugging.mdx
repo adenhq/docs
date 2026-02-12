@@ -1,0 +1,119 @@
+---
+title: "Debugging & Logging"
+description: "Find and fix agent issues fast with three-level observability and AI-assisted debugging"
+---
+
+When errors or unexpected behavior happen during testing or production, you need to understand what went wrong and fix it quickly. Hive provides structured logging and AI-assisted debugging to make this as painless as possible.
+
+## Three-Level Observability
+
+Hive uses three levels of logging to give you the right amount of detail at each stage of debugging. Start at L1 for the big picture, then drill down as needed.
+
+| Level | What It Captures | File | When to Use |
+|-------|-----------------|------|-------------|
+| **L1 (Summary)** | Run outcomes — success/failure, execution quality, attention flags | `summary.json` | Quick health check: did the agent succeed? |
+| **L2 (Details)** | Per-node results — retries, verdicts, latency, attention reasons | `details.jsonl` | Investigating which node failed or why routing went wrong |
+| **L3 (Tool Logs)** | Step-by-step execution — tool calls, LLM responses, judge feedback | `tool_logs.jsonl` | Deep debugging: exactly what the LLM saw, said, and did |
+
+<Tip>
+Start with L1 to find the problem area, then drill into L2 and L3 only for the failing nodes. This saves time and keeps you focused.
+</Tip>
+
+## Debugging Workflow
+
+<Steps>
+  <Step title="Check the summary">
+    Look at `summary.json` for the run outcome. Did the agent succeed or fail? Are there attention flags?
+
+    ```bash
+    hive logs <agent_name> --level summary
+    ```
+  </Step>
+  <Step title="Identify the failing node">
+    If the run failed, check `details.jsonl` to find which node produced the error or unexpected result. Look for retries, timeouts, and attention reasons.
+
+    ```bash
+    hive logs <agent_name> --level details
+    ```
+  </Step>
+  <Step title="Inspect tool-level execution">
+    For the failing node, examine `tool_logs.jsonl` to see the exact sequence of tool calls, LLM responses, and judge evaluations.
+
+    ```bash
+    hive logs <agent_name> --level tools --node <node_name>
+    ```
+  </Step>
+  <Step title="Reproduce interactively">
+    Use the TUI to run the agent again with the same input and watch execution in real time.
+
+    ```bash
+    hive tui <agent_name>
+    ```
+  </Step>
+  <Step title="Fix and validate">
+    Update your node code, edge logic, or goal definition, then re-run tests to confirm the fix.
+
+    ```bash
+    hive run <agent_name> --debug --input '{...}'
+    ```
+  </Step>
+</Steps>
+
+## AI-Assisted Debugging
+
+Hive gives you an AI-assisted experience for checking logs and getting high signal-to-noise insights. Instead of reading through raw log files, the debugging tools help you:
+
+- Identify the root cause of failures from log patterns
+- Suggest specific fixes based on common failure modes
+- Highlight attention-worthy details you might otherwise miss
+
+Use the debugger skill in your coding agent:
+
+```bash
+claude> /hive-debugger
+```
+
+This opens an interactive debugging session where the coding agent reads your logs, identifies issues, and proposes targeted fixes.
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Agent fails on a specific tool call" icon="wrench">
+    Check L3 logs for the exact tool call and its response. Common causes: missing credentials, API rate limits, or unexpected input format. Verify your [credential store](/building/credential-store) has the right keys set up.
+  </Accordion>
+
+  <Accordion title="Agent succeeds but produces wrong output" icon="circle-xmark">
+    Check L2 logs for routing decisions — the agent may be taking the wrong path through the graph. Review your [edge conditions](/building/edges) and [goal criteria](/building/goals) to make sure they match your intent.
+  </Accordion>
+
+  <Accordion title="Agent gets stuck in a retry loop" icon="rotate">
+    Check L2 for the retry count and L3 for why each attempt fails. The root cause is often an unreachable success condition in the node's evaluation logic. Adjust the node's constraints or add a fallback edge.
+  </Accordion>
+
+  <Accordion title="Human-in-the-loop node times out" icon="clock">
+    Check the timeout configuration in your [HITL node](/building/human-in-the-loop). Consider adjusting the timeout duration, changing the escalation policy, or adding an auto-approve fallback for low-risk decisions.
+  </Accordion>
+
+  <Accordion title="Agent costs more than expected" icon="dollar-sign">
+    Check L1 for total token usage and L2 for per-node costs. Agents that retry frequently or use expensive models on simple tasks drive up costs. Review your model configuration and set budget limits.
+  </Accordion>
+</AccordionGroup>
+
+## Testing vs Debugging
+
+Testing verifies your agent works correctly. Debugging investigates why it doesn't. Use them together:
+
+- **Before deployment:** Write [tests](/building/testing) for your goal criteria and constraints
+- **After a failure:** Use the debugging workflow above to diagnose and fix
+- **After a fix:** Add a regression test so the same failure doesn't happen again
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="vial" href="/building/testing">
+    Set up goal-based testing to catch issues before they reach production.
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/building/deployment">
+    Deploy your debugged agent to production with confidence.
+  </Card>
+</CardGroup>
